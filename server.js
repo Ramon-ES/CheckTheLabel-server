@@ -383,7 +383,11 @@ app.get("/", (req, res) => {
 	res.send("🟢 Multiplayer server running");
 });
 
-const PORT = process.env.PORT || 3003;
+app.get('/ping', (req, res) => {
+  res.status(200).json({ message: 'Server is running!' });
+});
+
+const PORT = 3003;
 server.listen(PORT, () => {
 	console.log(`🚀 Server listening on port ${PORT}`);
 });
