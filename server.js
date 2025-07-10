@@ -55,15 +55,19 @@ class Player {
 				items: [],
 			},
 			sweaters: {
-				max: 2,
+				max: 3,
 				items: [],
 			},
 			pants: {
-				max: 2,
+				max: 4,
 				items: [],
 			},
 			shirts: {
-				max: 2,
+				max: 6,
+				items: [],
+			},
+			excess: {
+				max: 200,
 				items: [],
 			},
 		};
@@ -348,6 +352,17 @@ io.on("connection", (socket) => {
 		});
 	});
 
+	socket.on("wardrobe:add", ({ roomCode, playerId, data }) => {
+		const room = rooms[roomCode];
+		if (!room) return;
+		room.players[playerId].wardrobe[data.type.toLowerCase()].items.push(
+			data
+		);
+		io.to(roomCode).emit("playersUpdated", {
+			players: room.players,
+		});
+	});
+
 	socket.on("cards:generate", ({ roomCode }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
@@ -372,8 +387,6 @@ io.on("connection", (socket) => {
 				card.points = 10;
 				card.price = 10;
 				card.washed = false;
-
-				console.log("created new card", material);
 			}
 		}
 
