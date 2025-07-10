@@ -1,7 +1,9 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-
+const { v4: uuidv4 } = require("uuid");
+const trivia = require("./trivia");
+const cardOptions = require("./cardOptions");
 const app = express();
 const server = http.createServer(app);
 
@@ -11,6 +13,21 @@ const io = new Server(server, {
 		methods: ["GET", "POST"],
 	},
 });
+
+const stepData = {
+	step1: {
+		money: undefined,
+		action: undefined,
+	},
+	step2: {
+		money: undefined,
+		action: undefined,
+	},
+	step3: {
+		money: undefined,
+		action: undefined,
+	},
+};
 
 class Player {
 	constructor(id) {
@@ -23,24 +40,31 @@ class Player {
 		this.username = generateUsername();
 		this.money = 0;
 		this.points = 0;
+		this.roundData = {};
+		for (let i = 0; i < 7; i++) {
+			this.roundData[i] = {
+				step1: { money: undefined, action: undefined },
+				step2: { money: undefined, action: undefined },
+				step3: { money: undefined, action: undefined },
+			};
+		}
+
 		this.wardrobe = {
-			jackets: [
-				{
-					type: "synthetic",
-					washed: false,
-				},
-				{
-					type: "natural",
-				},
-			],
+			jackets: {
+				max: 2,
+				items: [],
+			},
 			sweaters: {
-				amount: 0,
+				max: 2,
+				items: [],
 			},
 			pants: {
-				amount: 0,
+				max: 2,
+				items: [],
 			},
 			shirts: {
-				amount: 0,
+				max: 2,
+				items: [],
 			},
 		};
 		this.clothingItems = 0;
@@ -67,6 +91,13 @@ function generateRoomCode(length = 6) {
 	return code;
 }
 
+function shuffleArray(array) {
+	return array
+		.map((value) => ({ value, sort: Math.random() }))
+		.sort((a, b) => a.sort - b.sort)
+		.map(({ value }) => value);
+}
+
 io.on("connection", (socket) => {
 	console.log(`✅ Client connected: ${socket.id}`);
 
@@ -77,7 +108,7 @@ io.on("connection", (socket) => {
 		const room = rooms[roomCode];
 		socket.emit("fullState", {
 			players: room.players,
-			gameState: room.gameState,  
+			gameState: room.gameState,
 		});
 	});
 
@@ -85,15 +116,27 @@ io.on("connection", (socket) => {
 		const roomCode = generateRoomCode();
 		rooms[roomCode] = createBaseRoom();
 
-		const player = new Player(socket.id);
-		rooms[roomCode].players[socket.id] = player;
+		// store trivia
+		rooms[roomCode].trivia = shuffleArray([...trivia]);
+
+		// Generate a persistent playerId
+		const playerId = uuidv4();
+		socket.playerId = playerId;
+
+		// Create new player
+		const player = new Player(playerId);
+		rooms[roomCode].players[playerId] = player;
+
+		// const player = new Player(socket.id);
+		// rooms[roomCode].players[socket.id] = player;
 		socket.join(roomCode);
 		socket.roomCode = roomCode;
-		socket.playerId = socket.id;
+		// socket.playerId = socket.id;
 
 		socket.emit("roomCreated", { roomCode });
 		socket.emit("joinedRoom", {
 			id: socket.id,
+			playerId: playerId,
 			roomCode: roomCode,
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
@@ -101,7 +144,7 @@ io.on("connection", (socket) => {
 	});
 
 	socket.on("updateUsername", ({ playerId, newUsername }) => {
-		console.log(playerId);
+		// console.log(playerId);
 		console.log(newUsername);
 		if (
 			rooms[socket.roomCode] &&
@@ -148,25 +191,29 @@ io.on("connection", (socket) => {
 
 		socket.join(roomCode);
 		socket.roomCode = roomCode;
-		socket.playerId = socket.id;
 
-		// Restore or create player
-		if (rooms[roomCode].players[socket.id]) {
-			rooms[roomCode].players[socket.id].active = true;
-		} else {
-			rooms[roomCode].players[socket.id] = new Player(socket.id);
-		}
+		// Generate a persistent playerId
+		const playerId = uuidv4();
+		socket.playerId = playerId;
 
+		// Create new player
+		const player = new Player(playerId);
+		player.socketId = socket.id; // Optional: track active socket for this player
+		player.active = true;
+		rooms[roomCode].players[playerId] = player;
+
+		// Send info back to this client
 		socket.emit("joinedRoom", {
-			id: socket.id,
-			roomCode: roomCode,
+			playerId,
+			roomCode,
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
 		});
 
+		// Notify others
 		socket.to(roomCode).emit("playerJoined", {
-			id: socket.id,
-			player: rooms[roomCode].players[socket.id],
+			playerId,
+			player,
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
 		});
@@ -174,7 +221,12 @@ io.on("connection", (socket) => {
 
 	socket.on("rejoinRoom", ({ roomCode, playerId }) => {
 		const room = rooms[roomCode];
-		if (!room || !room.players[playerId]) {
+		const player = room?.players[playerId];
+
+		if (!room || !player) {
+			console.log("rejoin failed");
+			console.log(room?.players);
+			console.log(playerId);
 			socket.emit("rejoinFailed");
 			return;
 		}
@@ -183,29 +235,22 @@ io.on("connection", (socket) => {
 		socket.roomCode = roomCode;
 		socket.playerId = playerId;
 
-		// Reassign socket to existing player
-		room.players[playerId].active = true;
-
-		// Attach new socket ID if needed
-		if (playerId !== socket.id) {
-			// Optionally transfer ownership if socket.id has changed
-			room.players[socket.id] = room.players[playerId];
-			delete room.players[playerId];
-			socket.playerId = socket.id;
-		}
+		// Re-link socket
+		player.active = true;
+		player.socketId = socket.id;
 
 		socket.emit("rejoinSuccess", {
-			id: socket.id,
-			roomCode: roomCode,
+			playerId,
+			roomCode,
 			players: room.players,
 			gameState: room.gameState,
 		});
 
 		socket.to(roomCode).emit("playerRejoined", {
-			id: socket.id,
-			player: rooms[roomCode].players[socket.id],
-			players: rooms[roomCode].players,
-			gameState: rooms[roomCode].gameState,
+			playerId,
+			player,
+			players: room.players,
+			gameState: room.gameState,
 		});
 
 		if (room.timeoutId) {
@@ -257,6 +302,81 @@ io.on("connection", (socket) => {
 		setDeepValue(room.gameState, path, value);
 
 		// ✅ Broadcast updated gameState
+		io.to(roomCode).emit("gameStateUpdated", {
+			gameState: room.gameState,
+		});
+	});
+
+	socket.on("players:update", ({ roomCode, path, value }) => {
+		const room = rooms[roomCode];
+		if (!room) return;
+
+		setDeepValue(room.players, path, value);
+
+		io.to(roomCode).emit("playersUpdated", {
+			players: room.players,
+		});
+	});
+
+	socket.on("trivia:get", ({ roomCode }) => {
+		const room = rooms[roomCode];
+		if (!room || !room.trivia.length) return;
+
+		// Pick and remove the next trivia question
+		const nextTrivia = room.trivia.shift();
+
+		room.gameState.trivia.active = true;
+		room.gameState.trivia.title = nextTrivia.title;
+		room.gameState.trivia.text = nextTrivia.statement;
+		room.gameState.trivia.reasoning = nextTrivia.reasoning;
+		room.gameState.trivia.correct = nextTrivia.correct || 2;
+		room.gameState.trivia.wrong = nextTrivia.wrong || -2;
+		room.gameState.trivia.answer = nextTrivia.answer;
+
+		io.to(roomCode).emit("gameStateUpdated", {
+			gameState: room.gameState,
+		});
+	});
+
+	socket.on("money:add", ({ roomCode, playerId, amount }) => {
+		const room = rooms[roomCode];
+		if (!room) return;
+
+		room.players[playerId].money += amount;
+		io.to(roomCode).emit("playersUpdated", {
+			players: room.players,
+		});
+	});
+
+	socket.on("cards:generate", ({ roomCode }) => {
+		const room = rooms[roomCode];
+		if (!room) return;
+
+		const options = room.gameState.cardOptions;
+		for (let i = 0; i < room.gameState.cards.length; i++) {
+			const card = room.gameState.cards[i];
+			if (!card.active) {
+				const sort = Math.floor(Math.random() * options.length);
+				const material = Math.floor(
+					Math.random() * options[sort].material.length
+				);
+				const item = Math.floor(
+					Math.random() * options[sort].item.length
+				);
+
+				card.active = true;
+				card.selected = false;
+				card.title = options[sort].sort;
+				card.material = options[sort].material[material];
+				card.item = options[sort].item[item];
+				card.points = 10;
+				card.price = 10;
+				card.washed = false;
+
+				console.log("created new card", material);
+			}
+		}
+
 		io.to(roomCode).emit("gameStateUpdated", {
 			gameState: room.gameState,
 		});
@@ -347,17 +467,34 @@ function createBaseGameState() {
 		currentPhase: "login",
 		roundCounter: 0,
 		turnCounter: 0,
+		stepCounter: 0,
+		trivia: {
+			active: false,
+			title: undefined,
+			text: undefined,
+			answer: undefined,
+			correct: 2,
+			wrong: -2,
+		},
+		cardOptions: cardOptions,
+		cards: [
+			{ selected: false, price: undefined, active: false },
+			{ selected: false, price: undefined, active: false },
+			{ selected: false, price: undefined, active: false },
+			{ selected: false, price: undefined, active: false },
+			{ selected: false, price: undefined, active: false },
+		],
 		ui: {
 			login: true,
 			actions: false,
 			sidebars: false,
-			wardrobe: false, 
+			wardrobe: false,
 			clothingmarket: false,
 		},
 		microplastics: 0,
 		microplasticsMax: 20,
-		timer: 0,    
-	}; 
+		timer: 0,
+	};
 }
 function createBaseRoom() {
 	return {
@@ -383,8 +520,8 @@ app.get("/", (req, res) => {
 	res.send("🟢 Multiplayer server running");
 });
 
-app.get('/ping', (req, res) => {
-  res.status(200).json({ message: 'Server is running!' });
+app.get("/ping", (req, res) => {
+	res.status(200).json({ message: "Server is running!" });
 });
 
 const PORT = 3003;
