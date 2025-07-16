@@ -384,8 +384,8 @@ io.on("connection", (socket) => {
 				card.title = options[sort].sort;
 				card.material = options[sort].material[material];
 				card.item = options[sort].item[item];
-				card.points = 10;
-				card.price = 10;
+				card.points = Math.floor(Math.random() * 10);
+				card.price = Math.floor(Math.random() * 10);
 				card.washed = false;
 			}
 		}
@@ -416,12 +416,11 @@ io.on("connection", (socket) => {
 	socket.on("disconnect", () => {
 		const roomCode = socket.roomCode;
 		if (!roomCode || !rooms[roomCode]) return;
-
 		const room = rooms[roomCode];
-		if (room.players[socket.id]) {
-			room.players[socket.id].active = false;
-			socket.to(roomCode).emit("playerInactive", socket.id);
-			console.log(`⚠️ Marked ${socket.id} inactive in room ${roomCode}`);
+		if (room.players[socket.playerId]) {
+			room.players[socket.playerId].active = false;
+			socket.to(roomCode).emit("playerInactive", socket.playerId);
+			console.log(`⚠️ Marked ${socket.playerId} inactive in room ${roomCode}`);
 		}
 
 		// If all players are inactive, start delete timeout
