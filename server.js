@@ -3,6 +3,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const { v4: uuidv4 } = require("uuid");
 const trivia = require("./trivia");
+const actions = require("./actions");
 const cardOptions = require("./cardOptions");
 const app = express();
 const server = http.createServer(app);
@@ -122,6 +123,9 @@ io.on("connection", (socket) => {
 
 		// store trivia
 		rooms[roomCode].trivia = shuffleArray([...trivia]);
+
+		// store action
+		rooms[roomCode].actions = shuffleArray([...actions]);
 
 		// Generate a persistent playerId
 		const playerId = uuidv4();
@@ -342,6 +346,24 @@ io.on("connection", (socket) => {
 		});
 	});
 
+	socket.on("action:get", ({ roomCode }) => {
+		const room = rooms[roomCode];
+		if (!room || !room.actions.length) return;
+
+		// Pick and remove the next action question
+		const nextAction = room.actions.shift();
+
+		room.gameState.action.active = true;
+		room.gameState.action.title = nextAction.title;
+		room.gameState.action.text = nextAction.statement;
+		room.gameState.action.reasoning = nextAction.reasoning;
+		room.gameState.action.action = nextAction.action;
+
+		io.to(roomCode).emit("gameStateUpdated", {
+			gameState: room.gameState,
+		});
+	});
+
 	socket.on("money:add", ({ roomCode, playerId, amount }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
@@ -420,7 +442,9 @@ io.on("connection", (socket) => {
 		if (room.players[socket.playerId]) {
 			room.players[socket.playerId].active = false;
 			socket.to(roomCode).emit("playerInactive", socket.playerId);
-			console.log(`⚠️ Marked ${socket.playerId} inactive in room ${roomCode}`);
+			console.log(
+				`⚠️ Marked ${socket.playerId} inactive in room ${roomCode}`
+			);
 		}
 
 		// If all players are inactive, start delete timeout
@@ -481,6 +505,14 @@ function createBaseGameState() {
 		turnCounter: 0,
 		stepCounter: 0,
 		trivia: {
+			active: false,
+			title: undefined,
+			text: undefined,
+			answer: undefined,
+			correct: 2,
+			wrong: -2,
+		},
+		action: {
 			active: false,
 			title: undefined,
 			text: undefined,
