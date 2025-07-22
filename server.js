@@ -39,7 +39,7 @@ class Player {
 		this.active = true;
 		this.loginReady = false;
 		this.username = generateUsername();
-		this.money = 0;
+		this.money = 100;
 		this.points = 0;
 		this.roundData = {};
 		for (let i = 0; i < 7; i++) {
@@ -409,6 +409,8 @@ io.on("connection", (socket) => {
 				card.points = Math.floor(Math.random() * 10);
 				card.price = Math.floor(Math.random() * 10);
 				card.washed = false;
+
+				console.log("generated new card");
 			}
 		}
 
@@ -441,7 +443,11 @@ io.on("connection", (socket) => {
 		const room = rooms[roomCode];
 		if (room.players[socket.playerId]) {
 			room.players[socket.playerId].active = false;
-			socket.to(roomCode).emit("playerInactive", socket.playerId);
+			socket.to(roomCode).emit("playerInactive", {
+				playerId: socket.playerId,
+				players: room.players,
+				// gameState: room.gameState,
+			});
 			console.log(
 				`⚠️ Marked ${socket.playerId} inactive in room ${roomCode}`
 			);
