@@ -351,7 +351,11 @@ io.on("connection", (socket) => {
 		if (!room || !room.actions.length) return;
 
 		// Pick and remove the next action question
-		const nextAction = room.actions.shift();
+		// const nextAction = room.actions.shift();
+
+		// Pick random one
+		const index = Math.floor(Math.random() * room.actions.length);
+		const nextAction = room.actions[index];
 
 		room.gameState.action.active = true;
 		room.gameState.action.title = nextAction.title;
