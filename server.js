@@ -39,7 +39,7 @@ class Player {
 		this.active = true;
 		this.loginReady = false;
 		this.username = generateUsername();
-		this.money = 100;
+		this.money = 0;
 		this.points = 0;
 		this.roundData = {};
 		for (let i = 0; i < 7; i++) {
