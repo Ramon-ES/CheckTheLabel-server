@@ -475,10 +475,18 @@ io.on("connection", (socket) => {
 
 		const room = rooms[roomCode];
 
-		if (room.players[socket.id]) {
-			delete room.players[socket.id];
-			socket.to(roomCode).emit("playerLeft", socket.id);
-			console.log(`🚪 ${socket.id} left room ${roomCode}`);
+		if (room.players[socket.playerId]) {
+			console.log("current players:", room.players);
+			delete room.players[socket.playerId];
+			console.log("current players:", room.players);
+			socket.to(roomCode).emit("playerLeft", {
+				playerId: socket.playerId,
+				roomCode: socket.roomCode,
+				player: rooms[socket.roomCode].players[socket.id],
+				players: rooms[socket.roomCode].players,
+				gameState: rooms[socket.roomCode].gameState,
+			});
+			console.log(`🚪 ${socket.playerId} left room ${roomCode}`);
 		}
 
 		socket.leave(roomCode);
