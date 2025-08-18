@@ -423,12 +423,198 @@ io.on("connection", (socket) => {
 		});
 	});
 
+	socket.on("wardrobe:swap:init", ({ roomCode }) => {
+    console.log("Swap init called for room:", roomCode);
+
+    const room = rooms[roomCode];
+    if (!room) {
+        console.log("Room not found!");
+        return;
+    }
+    if (room.gameState.ended) {
+        console.log("Game already ended for room:", roomCode);
+        return;
+    }
+
+    const currentPlayerId = room.gameState.currentTurnPlayerId;
+    console.log("Current player ID:", currentPlayerId);
+
+    const currentPlayer = room.players[currentPlayerId];
+    if (!currentPlayer) {
+        console.log("Current player not found in room.players");
+        return;
+    }
+    console.log("Current player object:", currentPlayer);
+
+    // Helper: get all items from a wardrobe
+    const getAllItems = (wardrobe) =>
+        Object.values(wardrobe || {}).flatMap((slot) => slot?.items || []);
+
+    let currentPlayerWardrobeItem = null;
+    let otherPlayerWardrobeItem = null;
+    let randomOtherPlayerId = null;
+    let canSwap = false;
+
+    const currentPlayerItems = getAllItems(currentPlayer.wardrobe);
+    console.log("Current player items:", currentPlayerItems);
+
+    // Pick random other player who has at least one item
+    const otherPlayers = Object.values(room.players).filter(
+        (p) =>
+            p.id !== currentPlayerId &&
+            getAllItems(p.wardrobe).length > 0
+    );
+    console.log("Other eligible players:", otherPlayers.map(p => p.playerId));
+
+    if (currentPlayerItems.length > 0 && otherPlayers.length > 0) {
+        currentPlayerWardrobeItem =
+            currentPlayerItems[
+                Math.floor(Math.random() * currentPlayerItems.length)
+            ];
+        console.log("Selected current player item:", currentPlayerWardrobeItem);
+
+        const otherPlayer =
+            otherPlayers[
+                Math.floor(Math.random() * otherPlayers.length)
+            ];
+        randomOtherPlayerId = otherPlayer.id;
+        console.log("Selected other player ID:", randomOtherPlayerId);
+
+        const otherPlayerItems = getAllItems(otherPlayer.wardrobe);
+        console.log("Other player items:", otherPlayerItems);
+
+        otherPlayerWardrobeItem =
+            otherPlayerItems[
+                Math.floor(Math.random() * otherPlayerItems.length)
+            ];
+        console.log("Selected other player item:", otherPlayerWardrobeItem);
+
+        canSwap = true;
+    } else {
+        console.log("Cannot swap: either current player or other players have no items");
+    }
+
+    console.log("canSwap final:", canSwap);
+
+    io.to(roomCode).emit("fireEvent", {
+        event: "action:swap:random",
+        data: {
+            currentPlayerId,
+            currentPlayerWardrobeItem,
+            randomOtherPlayerId,
+            otherPlayerWardrobeItem,
+            canSwap,
+        },
+    });
+});
+
+
+	socket.on("wardrobe:swap:save", ({ roomCode, swapData }) => {
+		const room = rooms[roomCode];
+		if (!room || room.gameState.ended) return;
+
+		const { currentPlayer, otherPlayer } = swapData;
+
+		const player1 = room.players[currentPlayer.currentPlayerId];
+		const player2 = room.players[otherPlayer.randomOtherPlayerId];
+
+		if (!player1 || !player2) return;
+
+		const item1 = currentPlayer.item;
+		const item2 = otherPlayer.item;
+
+		const type1 = item1.item.toLowerCase(); // e.g., "shirts"
+		const type2 = item2.item.toLowerCase(); // e.g., "pants"
+
+		// Find and remove the items from their current arrays
+		const index1 = player1.wardrobe[type1].items.findIndex(
+			(i) => i.title === item1.title && i.material === item1.material
+		);
+		const index2 = player2.wardrobe[type2].items.findIndex(
+			(i) => i.title === item2.title && i.material === item2.material
+		);
+
+		if (index1 === -1 || index2 === -1) return;
+
+		const swappedItem1 = player1.wardrobe[type1].items.splice(index1, 1)[0];
+		const swappedItem2 = player2.wardrobe[type2].items.splice(index2, 1)[0];
+
+		// Push into the new type arrays
+		player1.wardrobe[type2].items.push(swappedItem2);
+		player2.wardrobe[type1].items.push(swappedItem1);
+
+		console.log("swapped wardrobe types and items!");
+
+		io.to(roomCode).emit("playersUpdated", {
+			players: room.players,
+		});
+	});
+
+	// 	this is the object which is sent (swapData)
+	//   "currentPlayer": {
+	//     "currentPlayerId": "f6ebe789-a104-45be-a41c-2a71d400ec4d",
+	//     "item": {
+	//       "selected": false,
+	//       "price": 1,
+	//       "active": true,
+	//       "title": "Synthetic",
+	//       "material": "Acetate",
+	//       "item": "Shirts",
+	//       "points": 9,
+	//       "washed": false,
+	//       "category": "Shirt",
+	//       "type": "Shirts"
+	//     }
+	//   },
+	//   "otherPlayer": {
+	//     "randomOtherPlayerId": "b3d288a2-3a50-4165-9093-3f5283bea4de",
+	//     "item": {
+	//       "selected": false,
+	//       "price": 0,
+	//       "active": true,
+	//       "title": "Natural",
+	//       "material": "Cashmere",
+	//       "item": "Pants",
+	//       "points": 3,
+	//       "washed": false,
+	//       "category": "Pants",
+	//       "type": "Pants"
+	//     }
+	//   }
+	// }
+
 	socket.on("fireEvent", ({ roomCode, event, ...args }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
 
 		// Forward the entire args array to everyone in the room
 		io.to(roomCode).emit("fireEvent", { event, ...args });
+	});
+
+	socket.on("checkIfEnd", ({ roomCode }) => {
+		const room = rooms[roomCode];
+		if (!room || room.gameState.ended) return;
+
+		let reason;
+		if (room.gameState.microplastics >= room.gameState.microplasticsMax) {
+			reason = "microplastics";
+		}
+
+		// Check of minstens één speler volle wardrobe heeft
+		const anyFull = Object.values(room.players).some((player) =>
+			hasFullWardrobe(player)
+		);
+		if (anyFull) {
+			reason = "wardrobe";
+		}
+
+		if (reason) {
+			room.gameState.ended = reason;
+			io.to(roomCode).emit("game:ended", {
+				reason,
+				gameState: room.gameState,
+			});
+		}
 	});
 
 	socket.on("getFullState", ({ roomCode }) => {
@@ -503,6 +689,14 @@ io.on("connection", (socket) => {
 		}
 	});
 });
+
+function hasFullWardrobe(player) {
+	// Check elke categorie behalve 'excess'
+	return Object.entries(player.wardrobe).every(([type, data]) => {
+		if (type === "excess") return true; // skip excess
+		return data.items.length >= data.max;
+	});
+}
 
 function broadcastFullState(roomCode) {
 	const room = rooms[roomCode];

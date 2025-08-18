@@ -1,44 +1,44 @@
 const actions = [
 	{
-		title: "Cheap shirts",
+		title: "Friction Alert!",
 		statement:
-			"You bought one cheap synthetic T-shirt on a whim. That will release many microplastics fibres that end up in your environment or even in your body! Add two microplastics to the laundry room.",
+		"Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics to the laundry room.",
 		action: "microplastics:add:2",
 		used: false,
 	},
 	{
-		title: "underfilled",
+		title: "Bad Assumption",
+		statement:
+		"You assumed a T-shirt was made from cotton and you did not check the label. Surprise! It is made from polyester. Add two microplastics to the laundry room.",
+		action: "microplastics:add:2",
+		used: false,
+	},
+	{
+		title: "Low Laundry Load",
 		statement:
 			"You underfilled the washing machine--this increases friction and releases more microplastic fibres in the environment! Add two extra microplastic next time you do laundry.",
 		action: "microplastics:wait:2",
 		used: false,
 	},
 	{
-		title: "Tumble dryer",
+		title: "Tumble Dryer",
 		statement:
 			"You dried your laundry with the tumble dryer this week. That releases many microplastic fibres in your indoor air! Add two microplastics to the laundry room.",
 		action: "microplastics:add:2",
 		used: false,
 	},
 	{
-		title: "High temperature",
+		title: "Synthetic Heat",
 		statement:
-			"You washed synthetic clothes at a very high temperature. More heat = more microplastics! Add two microplastics to the laundry room.",
+		"You washed synthetic clothes at a very high temperature. More heat = more microplastics! Add two microplastics to the laundry room.",
 		action: "microplastics:add:2",
 		used: false,
 	},
 	{
-		title: "Friction!",
+		title: "Clothing Swap",
 		statement:
-			"Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics to the laundry room.",
-		action: "microplastics:add:2",
-		used: false,
-	},
-	{
-		title: "Label check!",
-		statement:
-			"You assumed a T-shirt was made from cotton and you did not check the label. Surprise! It is made from polyester. Add two microplastics to the laundry room.",
-		action: "microplastics:add:2",
+			"You joined a clothing swap instead of buying new clothes. Second-hand clothes = fewer microplastics! Swap one of your clothing cards with another player's.",
+		action: "swap:random",
 		used: false,
 	},
 ];
