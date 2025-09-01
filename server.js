@@ -394,24 +394,35 @@ io.on("connection", (socket) => {
 		if (!room) return;
 
 		const options = room.gameState.cardOptions;
+		const items = Object.keys(options);
+
 		for (let i = 0; i < room.gameState.cards.length; i++) {
 			const card = room.gameState.cards[i];
 			if (!card.active) {
-				const sort = Math.floor(Math.random() * options.length);
-				const material = Math.floor(
-					Math.random() * options[sort].material.length
-				);
-				const item = Math.floor(
-					Math.random() * options[sort].item.length
-				);
+				// pick random item type (T-shirt, Jeans, etc.)
+				const itemType =
+					items[Math.floor(Math.random() * items.length)];
+				const itemOptions = options[itemType];
+
+				// decide randomly between new or secondHand
+				const condition =
+					Math.random() < 0.5 && itemOptions.secondHand.length > 0
+						? "secondHand"
+						: "new";
+
+				const choices = itemOptions[condition];
+				const choice =
+					choices[Math.floor(Math.random() * choices.length)];
 
 				card.active = true;
 				card.selected = false;
-				card.title = options[sort].sort;
-				card.material = options[sort].material[material];
-				card.item = options[sort].item[item];
-				card.points = Math.floor(Math.random() * 10);
-				card.price = Math.floor(Math.random() * 10);
+				card.title = choice.sort;
+				card.material = choice.material;
+				card.condition = choice.condition;
+				card.item = itemType;
+				card.sort = choice.sort;
+				card.points = choice.value;
+				card.price = choice.price;
 				card.washed = false;
 
 				console.log("generated new card");
@@ -424,164 +435,229 @@ io.on("connection", (socket) => {
 	});
 
 	socket.on("wardrobe:swap:init", ({ roomCode }) => {
-    console.log("Swap init called for room:", roomCode);
+		console.log("Swap init called for room:", roomCode);
 
-    const room = rooms[roomCode];
-    if (!room) {
-        console.log("Room not found!");
-        return;
-    }
-    if (room.gameState.ended) {
-        console.log("Game already ended for room:", roomCode);
-        return;
-    }
+		const room = rooms[roomCode];
+		if (!room) {
+			console.log("Room not found!");
+			return;
+		}
+		if (room.gameState.ended) {
+			console.log("Game already ended for room:", roomCode);
+			return;
+		}
 
-    const currentPlayerId = room.gameState.currentTurnPlayerId;
-    console.log("Current player ID:", currentPlayerId);
+		const currentPlayerId = room.gameState.currentTurnPlayerId;
+		console.log("Current player ID:", currentPlayerId);
 
-    const currentPlayer = room.players[currentPlayerId];
-    if (!currentPlayer) {
-        console.log("Current player not found in room.players");
-        return;
-    }
-    console.log("Current player object:", currentPlayer);
+		const currentPlayer = room.players[currentPlayerId];
+		if (!currentPlayer) {
+			console.log("Current player not found in room.players");
+			return;
+		}
+		console.log("Current player object:", currentPlayer);
 
-    // Helper: get all items from a wardrobe
-    const getAllItems = (wardrobe) =>
-        Object.values(wardrobe || {}).flatMap((slot) => slot?.items || []);
+		// Helper: get all items from a wardrobe
+		const getAllItems = (wardrobe) =>
+			Object.values(wardrobe || {}).flatMap((slot) => slot?.items || []);
 
-    let currentPlayerWardrobeItem = null;
-    let otherPlayerWardrobeItem = null;
-    let randomOtherPlayerId = null;
-    let canSwap = false;
+		let currentPlayerWardrobeItem = null;
+		let otherPlayerWardrobeItem = null;
+		let randomOtherPlayerId = null;
+		let canSwap = false;
 
-    const currentPlayerItems = getAllItems(currentPlayer.wardrobe);
-    console.log("Current player items:", currentPlayerItems);
+		const currentPlayerItems = getAllItems(currentPlayer.wardrobe);
+		console.log("Current player items:", currentPlayerItems);
 
-    // Pick random other player who has at least one item
-    const otherPlayers = Object.values(room.players).filter(
-        (p) =>
-            p.id !== currentPlayerId &&
-            getAllItems(p.wardrobe).length > 0
-    );
-    console.log("Other eligible players:", otherPlayers.map(p => p.playerId));
+		// Pick random other player who has at least one item
+		const otherPlayers = Object.values(room.players).filter(
+			(p) =>
+				p.id !== currentPlayerId && getAllItems(p.wardrobe).length > 0
+		);
+		console.log(
+			"Other eligible players:",
+			otherPlayers.map((p) => p.playerId)
+		);
 
-    if (currentPlayerItems.length > 0 && otherPlayers.length > 0) {
-        currentPlayerWardrobeItem =
-            currentPlayerItems[
-                Math.floor(Math.random() * currentPlayerItems.length)
-            ];
-        console.log("Selected current player item:", currentPlayerWardrobeItem);
+		if (currentPlayerItems.length > 0 && otherPlayers.length > 0) {
+			currentPlayerWardrobeItem =
+				currentPlayerItems[
+					Math.floor(Math.random() * currentPlayerItems.length)
+				];
+			console.log(
+				"Selected current player item:",
+				currentPlayerWardrobeItem
+			);
 
-        const otherPlayer =
-            otherPlayers[
-                Math.floor(Math.random() * otherPlayers.length)
-            ];
-        randomOtherPlayerId = otherPlayer.id;
-        console.log("Selected other player ID:", randomOtherPlayerId);
+			const otherPlayer =
+				otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
+			randomOtherPlayerId = otherPlayer.id;
+			console.log("Selected other player ID:", randomOtherPlayerId);
 
-        const otherPlayerItems = getAllItems(otherPlayer.wardrobe);
-        console.log("Other player items:", otherPlayerItems);
+			const otherPlayerItems = getAllItems(otherPlayer.wardrobe);
+			console.log("Other player items:", otherPlayerItems);
 
-        otherPlayerWardrobeItem =
-            otherPlayerItems[
-                Math.floor(Math.random() * otherPlayerItems.length)
-            ];
-        console.log("Selected other player item:", otherPlayerWardrobeItem);
+			otherPlayerWardrobeItem =
+				otherPlayerItems[
+					Math.floor(Math.random() * otherPlayerItems.length)
+				];
+			console.log("Selected other player item:", otherPlayerWardrobeItem);
 
-        canSwap = true;
-    } else {
-        console.log("Cannot swap: either current player or other players have no items");
-    }
+			canSwap = true;
+		} else {
+			console.log(
+				"Cannot swap: either current player or other players have no items"
+			);
+		}
 
-    console.log("canSwap final:", canSwap);
+		console.log("canSwap final:", canSwap);
 
-    io.to(roomCode).emit("fireEvent", {
-        event: "action:swap:random",
-        data: {
-            currentPlayerId,
-            currentPlayerWardrobeItem,
-            randomOtherPlayerId,
-            otherPlayerWardrobeItem,
-            canSwap,
-        },
-    });
-});
-
+		io.to(roomCode).emit("fireEvent", {
+			event: "action:swap:random",
+			data: {
+				currentPlayerId,
+				currentPlayerWardrobeItem,
+				randomOtherPlayerId,
+				otherPlayerWardrobeItem,
+				canSwap,
+			},
+		});
+	});
 
 	socket.on("wardrobe:swap:save", ({ roomCode, swapData }) => {
+		console.log("[swap:save] Swap request received");
+
 		const room = rooms[roomCode];
 		if (!room || room.gameState.ended) return;
 
 		const { currentPlayer, otherPlayer } = swapData;
 
-		const player1 = room.players[currentPlayer.currentPlayerId];
-		const player2 = room.players[otherPlayer.randomOtherPlayerId];
+		const player1 = room.players[currentPlayer?.currentPlayerId];
+		const player2 = room.players[otherPlayer?.randomOtherPlayerId];
 
-		if (!player1 || !player2) return;
+		console.log("  Player1:", player1?.username || "null");
+		console.log("  Player2:", player2?.username || "null");
+		console.log("  Item1:", currentPlayer?.item || "null");
+		console.log("  Item2:", otherPlayer?.item || "null");
 
-		const item1 = currentPlayer.item;
-		const item2 = otherPlayer.item;
+		const item1 = currentPlayer?.item;
+		const item2 = otherPlayer?.item;
 
-		const type1 = item1.item.toLowerCase(); // e.g., "shirts"
-		const type2 = item2.item.toLowerCase(); // e.g., "pants"
+		// ---- Case 1: Both items exist → swap
+		if (player1 && player2 && item1 && item2) {
+			console.log("[swap:save] Case 1: swapping both ways");
 
-		// Find and remove the items from their current arrays
-		const index1 = player1.wardrobe[type1].items.findIndex(
-			(i) => i.title === item1.title && i.material === item1.material
-		);
-		const index2 = player2.wardrobe[type2].items.findIndex(
-			(i) => i.title === item2.title && i.material === item2.material
-		);
+			const type1 = item1.item.toLowerCase();
+			const type2 = item2.item.toLowerCase();
 
-		if (index1 === -1 || index2 === -1) return;
+			const index1 = player1.wardrobe[type1].items.findIndex(
+				(i) => i.title === item1.title && i.material === item1.material
+			);
+			const index2 = player2.wardrobe[type2].items.findIndex(
+				(i) => i.title === item2.title && i.material === item2.material
+			);
 
-		const swappedItem1 = player1.wardrobe[type1].items.splice(index1, 1)[0];
-		const swappedItem2 = player2.wardrobe[type2].items.splice(index2, 1)[0];
+			if (index1 === -1 || index2 === -1) {
+				console.log(
+					"[swap:save] ERROR: Item not found in one of the wardrobes"
+				);
+				return;
+			}
 
-		// Push into the new type arrays
-		player1.wardrobe[type2].items.push(swappedItem2);
-		player2.wardrobe[type1].items.push(swappedItem1);
+			const swapped1 = player1.wardrobe[type1].items.splice(index1, 1)[0];
+			const swapped2 = player2.wardrobe[type2].items.splice(index2, 1)[0];
 
-		console.log("swapped wardrobe types and items!");
+			player1.wardrobe[type2].items.push(swapped2);
+			player2.wardrobe[type1].items.push(swapped1);
+
+			console.log(`  Swapped ${swapped1.title} <-> ${swapped2.title}`);
+		}
+
+		// ---- Case 2: currentPlayer.item is null → transfer from other to current
+		else if (player1 && player2 && !item1 && item2) {
+			console.log(
+				"[swap:save] Case 2: currentPlayer has no item, transfer from other → current"
+			);
+
+			const type2 = item2.item.toLowerCase();
+			const index2 = player2.wardrobe[type2].items.findIndex(
+				(i) => i.title === item2.title && i.material === item2.material
+			);
+
+			if (index2 === -1) {
+				console.log(
+					"[swap:save] ERROR: Item2 not found in otherPlayer’s wardrobe"
+				);
+				return;
+			}
+
+			const removed = player2.wardrobe[type2].items.splice(index2, 1)[0];
+			player1.wardrobe[type2].items.push(removed);
+
+			console.log(
+				`  Transferred ${removed.title} from ${player2.username} → ${player1.username}`
+			);
+		}
+
+		// ---- Case 3: otherPlayer.item is null → transfer from current to other
+		else if (player1 && player2 && item1 && !item2) {
+			console.log(
+				"[swap:save] Case 3: otherPlayer has no item, transfer from current → other"
+			);
+
+			const type1 = item1.item.toLowerCase();
+			const index1 = player1.wardrobe[type1].items.findIndex(
+				(i) => i.title === item1.title && i.material === item1.material
+			);
+
+			if (index1 === -1) {
+				console.log(
+					"[swap:save] ERROR: Item1 not found in currentPlayer’s wardrobe"
+				);
+				return;
+			}
+
+			const removed = player1.wardrobe[type1].items.splice(index1, 1)[0];
+			player2.wardrobe[type1].items.push(removed);
+
+			console.log(
+				`  Transferred ${removed.title} from ${player1.username} → ${player2.username}`
+			);
+		} else {
+			console.log("[swap:save] ERROR: Invalid swap case, nothing to do!");
+		}
 
 		io.to(roomCode).emit("playersUpdated", {
 			players: room.players,
 		});
 	});
 
-	// 	this is the object which is sent (swapData)
-	//   "currentPlayer": {
-	//     "currentPlayerId": "f6ebe789-a104-45be-a41c-2a71d400ec4d",
-	//     "item": {
-	//       "selected": false,
-	//       "price": 1,
-	//       "active": true,
-	//       "title": "Synthetic",
-	//       "material": "Acetate",
-	//       "item": "Shirts",
-	//       "points": 9,
-	//       "washed": false,
-	//       "category": "Shirt",
-	//       "type": "Shirts"
-	//     }
-	//   },
-	//   "otherPlayer": {
-	//     "randomOtherPlayerId": "b3d288a2-3a50-4165-9093-3f5283bea4de",
-	//     "item": {
-	//       "selected": false,
-	//       "price": 0,
-	//       "active": true,
-	//       "title": "Natural",
-	//       "material": "Cashmere",
-	//       "item": "Pants",
-	//       "points": 3,
-	//       "washed": false,
-	//       "category": "Pants",
-	//       "type": "Pants"
-	//     }
-	//   }
-	// }
+	socket.on("wardrobe:discard:card", ({ roomCode, data }) => {
+		const room = rooms[roomCode];
+		if (!room || room.gameState.ended) return;
+
+		console.log(data);
+
+		const player = room.players[data.player.playerId];
+		const item = data.player.item;
+		const type = item.item.toLowerCase();
+		const index = player.wardrobe[type].items.findIndex(
+			(i) => i.title === item.title && i.material === item.material
+		);
+
+		if (index === -1) {
+			console.log(
+				"[card:discard] ERROR: data.item not found in currentPlayer's wardrobe"
+			);
+			return;
+		}
+
+		player.wardrobe[type].items.splice(index, 1)[0];
+
+		io.to(roomCode).emit("playersUpdated", {
+			players: room.players,
+		});
+	});
 
 	socket.on("fireEvent", ({ roomCode, event, ...args }) => {
 		const room = rooms[roomCode];
