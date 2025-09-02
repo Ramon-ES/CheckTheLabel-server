@@ -672,16 +672,19 @@ io.on("connection", (socket) => {
 		if (!room || room.gameState.ended) return;
 
 		let reason;
+
 		if (room.gameState.microplastics >= room.gameState.microplasticsMax) {
 			reason = "microplastics";
 		}
 
-		// Check of minstens één speler volle wardrobe heeft
-		const anyFull = Object.values(room.players).some((player) =>
+		// Zoek speler met volle wardrobe
+		const fullWardrobePlayer = Object.values(room.players).find((player) =>
 			hasFullWardrobe(player)
 		);
-		if (anyFull) {
+
+		if (fullWardrobePlayer) {
 			reason = "wardrobe";
+			room.gameState.endedBy = fullWardrobePlayer.username;
 		}
 
 		if (reason) {
