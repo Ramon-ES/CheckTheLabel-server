@@ -1,227 +1,219 @@
 const trivia = [
 	{
+		title: "Microplastic Particle Size",
+		statement: "The smallest microplastic particle found by scientists are comparable in thickness to a human hair",
+		answer: false,
+		reasoning:
+			"Microplastics can be as small as a virus (100 nanometers). Below 100 nanometers, these particles are called nanoplastics.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Global Plastic Recycling",
+		statement: "Most global plastic waste is recycled.",
+		answer: false,
+		reasoning:
+			"Only 9% of plastic waste is recycled globally. Of all the plastic packaging waste in the Netherlands, only 7% is recycled to make new packaging. That's why it is important to reduce plastic use in our daily life.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Microplastics in Human Placenta",
+		statement: "Microplastics have been found in the human placenta.",
+		answer: true,
+		reasoning:
+			"In 2020, a group of researchers found evidence for microplastics in placentas. More recently, microplastics have also been found in other parts of our body, like human blood and the human brain.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Synthetic Clothing and Ocean Microplastics",
+		statement: "Microplastics from washing synthetic clothing account for about 15% of the total microplastics present in the oceans.",
+		answer: false,
+		reasoning:
+			"Microplastics released during the washing of synthetic clothing is estimated to be 35% and be the main sources of microplastics in the oceans.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Plants and Microplastics",
+		statement: "Plants grow normally despite the presence of microplastics, while algae are affected.",
+		answer: false,
+		reasoning:
+			"Microplastics can harm both plants and algae, for example by damaging roots and affecting photosynthesis, making it harder for them to get nutrients and grow.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Inhaling Microplastics",
+		statement: "Microplastics can be inhaled.",
+		answer: true,
+		reasoning:
+			"Microplastic particles are so small they can float in indoor air and reach your lungs. We are chronically exposed to microplastics in the air through breathing. Ventilating your home can reduce this exposure.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Animal Health Effects",
+		statement: "Microplastics cause a wide range of health problems to animals.",
+		answer: true,
+		reasoning:
+			"In animals, microplastics can cause problems with growth and reproduction, damage their DNA, upset their bodies' functions, and even change their behaviour.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Human Health Research",
+		statement: "There is no research yet showing health effects of microplastics in humans",
+		answer: false,
+		reasoning:
+			"In humans, microplastics have been associated with inflammation, breathing problems, and a higher risk of cancer.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Microplastic Ingestion Sources",
+		statement: "The amount of microplastics we ingest depends exclusively on our diet",
+		answer: false,
+		reasoning:
+			"Some food and drinks we consume, like fish and bottled water, contain more microplastics. However, there is also a significant amount of microplastics floating in our air, which then settle on our food, which we ingest.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Washing Machine Filters",
+		statement: "Special washing machine filters for microplastics can capture 100% of microplastics",
+		answer: false,
+		reasoning:
+			"It is difficult to estimate the precise amount, but previous research found that no filters are currently able to capture all microplastics. That is why it is important to always check the label and choose clothes made with as little synthetic fabric as possible.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Indoor Air Microplastics",
+		statement: "The majority of microplastics fluctuating in the air inside your house comes from outside",
+		answer: false,
+		reasoning:
+			"Most microplastics in your indoor air come from your own synthetic clothes and household textile, so ventilate regularly! If you live in an area with heavy traffic, ventilate at night when there is less traffic.",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Quick Microplastic Reduction",
+		statement: "There are actions you can take (that only take a few seconds) and can help you to reduce your exposure to microplastics drastically.",
+		answer: true,
+		reasoning:
+			"Opening your window and thereby ventilating your house is considered by experts one of the core actions to reduce microplastics in your house",
+		used: false,
+		prioritize: true,
+	},
+	{
+		title: "Single-use Plastics",
+		statement: "Most of the world's population wants to get rid of single-use plastics.",
+		answer: true,
+		reasoning:
+			"A World Wildlife Fund survey in 32 countries found that 87% of people wanted to get rid of plastic types that cannot be recycled. This shows strong global public support to phase out hard-to-recycle plastics",
+		used: false,
+		prioritize: true,
+	},
+	{
 		title: "Dutch Environment Care",
-		statement: "Only a minority of Dutch people care about the environment",
+		statement: "Only a minority of Dutch people care about the environment.",
 		answer: false,
 		reasoning:
 			"A recent study of the Dutch population revealed that a significant majority of people (around 70%) care about the environment.",
 		used: false,
+		prioritize: true,
 	},
 	{
 		title: "Sustainable Fashion in Europe",
-		statement:
-			"The large majority of people in Europe buy sustainable fashion items",
+		statement: "Only a small minority of people in Europe buy sustainable fashion, which is made with less harm to people and the environment.",
 		answer: false,
 		reasoning:
 			"It was 46% in 2022, but the number has been increasing in recent years!",
 		used: false,
+		prioritize: true,
 	},
 	{
 		title: "Dutch Laundry Habits",
-		statement:
-			"The large majority of Dutch people wash clothes at a low temperature",
+		statement: "The large majority of Dutch people wash clothes at a low temperature.",
 		answer: true,
 		reasoning:
-			"A recent study on the Dutch population showed that 88% of Dutch people wash clothes at 40 degrees or below. This simple habit helps protect fabrics and reduce fiber shedding.",
+			"A recent study on the Dutch population showed that 88% of Dutch people wash clothes at 40 degrees or below. This simple habit helps protect fabrics and reduce fibre shedding.",
 		used: false,
+		prioritize: true,
 	},
 	{
-		title: "Comfortable Natural Clothes",
-		statement:
-			"Most people think that natural clothes are more comfortable than synthetic clothes",
+		title: "Natural vs Synthetic Clothing Comfort",
+		statement: "Most people think that natural clothes are more comfortable than synthetic clothes.",
 		answer: true,
 		reasoning:
-			"A study has shown that people have a stronger preference for natural fibers over synthetic fabrics; cotton was especially preferred as considered to be more comfortable.",
+			"A study has shown that people have a stronger preference for natural fibres over synthetic fibres; cotton was especially preferred as it was considered to be more comfortable.",
 		used: false,
+		prioritize: true,
 	},
 	{
-		title: "Car Tyres and Microplastics",
-		statement:
-			"Car tyres are the largest source of microplastics in the Netherlands.",
-		answer: true,
-		reasoning:
-			"Due to friction when driving and degradation, car tires represent the greatest source of microplastics, followed by packaging and plastic used in agriculture.",
-		used: false,
-	},
-	{
-		title: "Paint and Microplastics",
-		statement: "Paint is a source of microplastics pollution",
-		answer: true,
-		reasoning:
-			"Paint is a source of microplastic pollution in the oceans. Paint microplastics mainly come from ships and boats used for commercial and recreational purposes.",
-		used: false,
-	},
-	{
-		title: "E-Waste and Plastic",
-		statement: "Circa 1/4 of our electronic waste is plastic.",
-		answer: true,
-		reasoning: "Around 15-20% of the e-waste is plastic or part plastic.",
-		used: false,
-	},
-	{
-		title: "Plastic Packaging in EU",
-		statement:
-			"Within the EU, almost half of all plastic is used for packaging.",
-		answer: true,
-		reasoning: "Circa 44% of plastic is used for packaging.",
-		used: false,
-	},
-	{
-		title: "Packaging Waste in EU",
-		statement:
-			"Within the EU, more than half of packaging waste is plastic",
-		answer: false,
-		reasoning: "Circa 20 percent of the packaging waste is plastic.",
-		used: false,
-	},
-	{
-		title: "Microplastics in Drinking Water",
-		statement: "Our drinking water contains microplastics.",
-		answer: true,
-		reasoning:
-			"Microplastics have indeed been found in our drinking water. However, the water we drink from plastic bottles contains more microplastics than tap water. It is estimated that a person drinking bottled water may ingest in a year 22.5 times more microplastics than a person drinking tap water.",
-		used: false,
-	},
-	{
-		title: "Plastic Floating on Water",
-		statement:
-			"Plastic and microplastics float in water. This is why large amounts accumulate on the ocean's surface, while very little is found in the deep sea.",
+		title: "Microplastic Water Solubility",
+		statement: "Microplastics are easily soluble in water.",
 		answer: false,
 		reasoning:
-			"Not all types of plastic float on the surfaces. Microplastics can be also found in the deep ocean floor.",
+			"Microplastics are defined as \"any solid plastic particle of 5 mm or less which are insoluble in water\" (United Nations Environment Programme).",
 		used: false,
+		prioritize: false,
 	},
 	{
-		title: "Effectiveness of Open Ocean Clean-up Projects",
-		statement:
-			"Open ocean clean-up projects are extremely effective in tackling plastic pollution.",
+		title: "Animal Species and Microplastics",
+		statement: "Microplastics have been identified in more than 1300 animal species.",
+		answer: true,
+		reasoning:
+			"Researchers have found that at least 1500 animal species ingest microplastics through the food chain, with over 1200 of them being marine species.",
+		used: false,
+		prioritize: false,
+	},
+	{
+		title: "Human Health Research Status",
+		statement: "A lot of scientific knowledge already exists on the effects of microplastics on human health.",
 		answer: false,
 		reasoning:
-			"It is still unclear how effective clean-up projects on the open oceans are in countering plastic pollution. The projects are effective in cleaning up larger pieces of plastic at the surface before they can break down into microplastics. However, these projects are not capable of cleaning up microplastics or reaching plastic below the surface water.",
+			"Research on the health effects of microplastics is still in the early stage, but it is rapidly increasing.",
 		used: false,
+		prioritize: false,
 	},
 	{
-		title: "Role of Microbes in Plastic Breakdown",
-		statement:
-			"Microbes are capable of breaking down plastic and will be the solution for microplastic pollution",
+		title: "Floating Ocean Plastic",
+		statement: "New research estimates the extent of floating plastic in the oceans is at 3.2 million tonnes.",
+		answer: true,
+		reasoning:
+			"This was estimate for 2020",
+		used: false,
+		prioritize: false,
+	},
+	{
+		title: "Nanoplastics and Lead Absorption",
+		statement: "Nanoplastics can absorb up to 30% of lead within 5 minutes.",
 		answer: false,
 		reasoning:
-			"Researchers have identified bacteria and fungi that are able to break down some plastics, but this was investigated only in industrial conditions and with some types of plastic. In addition, breaking down plastic might be an even more toxic process.",
+			"Recent research showed that Nanoplastics can absorb up to 99% of lead in 5 minutes, carrying them into the environment. Long-term exposure to heavy metals has been linked to health and developmental problems in children.",
 		used: false,
+		prioritize: false,
 	},
 	{
-		title: "Size of the Great Pacific Garbage Patch",
-		statement:
-			"The Great Pacific Garbage Patch (also called Garbage Island or Plastic soup) is large enough that it can be seen from space.",
+		title: "Global Textile Production",
+		statement: "More than 90% of the textile produced worldwide is synthetic",
 		answer: false,
 		reasoning:
-			"The Great Pacific Garbage Patch is mainly made up of fishing nets and gear, and it resembles a plastic soup rather than a plastic island. Not all of the plastic floats on the surface; many sink beneath it. And part of this is composed by microplastics. These characteristics make the patch difficult to see from space, despite its large size.",
+			"Around 60% of textiles produced worldwide are synthetic, mainly polyester, acrylic, and nylon. However, natural fibres are still widely produced, so there are still plenty of others options available!",
 		used: false,
+		prioritize: false,
 	},
 	{
-		title: "Annual Plastic Waste Production",
-		statement:
-			"150 million tonnes of plastic waste are created every year.",
-		answer: false,
-		reasoning:
-			"400 million tonnes of plastic waste is created every year according to the UN Environmental Programme.",
-		used: false,
-	},
-	{
-		title: "Plastic Waste in Agriculture",
-		statement:
-			"40% of plastic products produced are thrown away one month after purchase.",
-		answer: true,
-		reasoning: "",
-		used: false,
-	},
-	{
-		title: "Impact of Plastic on the Agricultural Sector",
-		statement:
-			"The use of plastic in the agricultural sector is harmful to the environment.",
+		title: "Microplastics and Skin Contact",
+		statement: "Microplastics can enter the human body via skin contact.",
 		answer: true,
 		reasoning:
-			"Plastic in the agricultural sector is mostly used for greenhouses, shade cloth, and irrigation systems. Microplastics originating from it end up in soil, plants and our food.",
+			"Small microplastics can penetrate skin pores. How much microplastics penetrate the skin depends on pore size, which varies from person to person.",
 		used: false,
-	},
-	{
-		title: "Plastic Particles in Water Bottles",
-		statement:
-			"Water in plastic bottle contains hundreds of thousands of tiny plastic particles.",
-		answer: true,
-		reasoning:
-			"It is estimated that 1 liter of bottled water may contains up to 240,000 microplastic particles.",
-		used: false,
-	},
-	{
-		title: "Infectious Diseases and Plastic Trash",
-		statement:
-			"The increasing amount of plastic trash in our environment increases the risk of infectious diseases.",
-		answer: true,
-		reasoning:
-			"Plastics can retain water; this water is a potential breeding ground for insects. The more plastic lying around, the more potential breeding grounds. More breeding grounds mean more mosquitoes and thus a greater chance of transmitting diseases such as Malaria, Zika or Dengue. There is a direct link between stray plastic and the risk of infectious diseases.",
-		used: false,
-	},
-	{
-		title: "Plastic in Rainwater",
-		statement: "Every day, somewhere in the world, it rains microplastics.",
-		answer: true,
-		reasoning:
-			"Several research studies have found microplastics in rainwater.",
-		used: false,
-	},
-	{
-		title: "Microplastic Pollution in Oceans",
-		statement:
-			"2 million tons of plastic debris enter our oceans every year.",
-		answer: false,
-		reasoning:
-			"It was estimated that every year 11 million tons of plastic debris enter the ocean.",
-		used: false,
-	},
-	{
-		title: "Microplastics in Antarctic Snow",
-		statement: "Microplastics have been found in Antarctic snow",
-		answer: true,
-		reasoning:
-			"Microplastics have been found in remote places, even Antarctic snow a few years ago.",
-		used: false,
-	},
-	{
-		title: "Plastic in microwaves",
-		statement:
-			"Heating food in plastic containers in the microwave release microplastics.",
-		answer: true,
-		reasoning:
-			"When plastic is heated, microplastics are released more easily. Did you know certain types of ceramic and glass are safe to microwave? Use your plate or non-plastic containers to heat up your food!",
-		used: false,
-	},
-	{
-		title: "Plastic Containers and Microplastics",
-		statement:
-			"Soft plastics (like takeaway containers) are 'worse' than hard plastics in terms of how much microplastics are released",
-		answer: true,
-		reasoning:
-			"Soft plastics release indeed more microplastics than hard containers. Try to avoid takeaway food packaged in plastic!",
-		used: false,
-	},
-	{
-		title: "Soft Plastics vs Hard Plastics",
-		statement:
-			"Of the 10 most popular cosmetic brand in Europe, 4 contains microplastics",
-		answer: false,
-		reasoning:
-			"According an analysis by Plastic Soup Foundation, 9 out of 10 personal care products contained microplastics. But did you know that the Netherlands is the first country to ban cosmetics with microplastics? If you are staying abroad you can use the Beat The Microbead app to find out if products contain microplastics.",
-		used: false,
-	},
-	{
-		title: "Cosmetics and Microplastics",
-		statement:
-			"Of the 10 most popular cosmetic brand in Europe, 4 contains microplastics",
-		answer: false,
-		reasoning:
-			"According an analysis by Plastic Soup Foundation, 9 out of 10 personal care products contained microplastics. But did you know that the Netherlands is the first country to ban cosmetics with microplastics? If you are staying abroad you can use the Beat The Microbead app to find out if products contain microplastics.",
-		used: false,
+		prioritize: false,
 	},
 ];
 

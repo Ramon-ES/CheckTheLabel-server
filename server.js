@@ -105,6 +105,9 @@ function shuffleArray(array) {
 
 io.on("connection", (socket) => {
 	console.log(`✅ Client connected: ${socket.id}`);
+	
+	// Store persistent username across rooms for this socket
+	socket.persistentUsername = null;
 
 	socket.on("getFullState", () => {
 		const roomCode = socket.roomCode;
@@ -133,6 +136,12 @@ io.on("connection", (socket) => {
 
 		// Create new player
 		const player = new Player(playerId);
+		
+		// Use persistent username if available
+		if (socket.persistentUsername) {
+			player.username = socket.persistentUsername;
+		}
+		
 		rooms[roomCode].players[playerId] = player;
 
 		// const player = new Player(socket.id);
@@ -154,6 +163,10 @@ io.on("connection", (socket) => {
 	socket.on("updateUsername", ({ playerId, newUsername }) => {
 		// console.log(playerId);
 		console.log(newUsername);
+		
+		// Store username persistently on the socket
+		socket.persistentUsername = newUsername;
+		
 		if (
 			rooms[socket.roomCode] &&
 			rooms[socket.roomCode].players[playerId]
@@ -208,6 +221,12 @@ io.on("connection", (socket) => {
 		const player = new Player(playerId);
 		player.socketId = socket.id; // Optional: track active socket for this player
 		player.active = true;
+		
+		// Use persistent username if available
+		if (socket.persistentUsername) {
+			player.username = socket.persistentUsername;
+		}
+		
 		rooms[roomCode].players[playerId] = player;
 
 		// Send info back to this client
@@ -306,8 +325,16 @@ io.on("connection", (socket) => {
 		const room = rooms[roomCode];
 		if (!room) return;
 
+		// ✅ Ensure microplastics can't go negative
+		if (path === "microplastics" && value < 0) {
+			value = 0;
+		}
+
 		// ✅ Set nested value using the path
 		setDeepValue(room.gameState, path, value);
+		
+		// ✅ Increment version for state tracking
+		incrementGameStateVersion(room);
 
 		// ✅ Broadcast updated gameState
 		io.to(roomCode).emit("gameStateUpdated", {
@@ -328,10 +355,26 @@ io.on("connection", (socket) => {
 
 	socket.on("trivia:get", ({ roomCode }) => {
 		const room = rooms[roomCode];
-		if (!room || !room.trivia.length) return;
+		if (!room) return;
 
-		// Pick and remove the next trivia question
-		const nextTrivia = room.trivia.shift();
+		// If no trivia left, reshuffle and reset all questions
+		if (!room.trivia.length) {
+			room.trivia = shuffleArray([...trivia]);
+			console.log(`🔄 Reshuffled trivia questions for room ${roomCode}`);
+		}
+
+		// First check for prioritized questions
+		let nextTrivia;
+		const prioritizedIndex = room.trivia.findIndex(q => q.prioritize === true || q.priotize === true);
+		
+		if (prioritizedIndex !== -1) {
+			// Use prioritized question
+			nextTrivia = room.trivia.splice(prioritizedIndex, 1)[0];
+		} else {
+			// No prioritized questions left, pick random from remaining
+			const randomIndex = Math.floor(Math.random() * room.trivia.length);
+			nextTrivia = room.trivia.splice(randomIndex, 1)[0];
+		}
 
 		room.gameState.trivia.active = true;
 		room.gameState.trivia.title = nextTrivia.title;
@@ -341,6 +384,9 @@ io.on("connection", (socket) => {
 		room.gameState.trivia.wrong = nextTrivia.wrong || -2;
 		room.gameState.trivia.answer = nextTrivia.answer;
 
+		// ✅ Increment version for state tracking
+		incrementGameStateVersion(room);
+
 		io.to(roomCode).emit("gameStateUpdated", {
 			gameState: room.gameState,
 		});
@@ -348,7 +394,7 @@ io.on("connection", (socket) => {
 
 	socket.on("action:get", ({ roomCode }) => {
 		const room = rooms[roomCode];
-		if (!room || !room.actions.length) return;
+		if (!room) return;
 
 		// Pick and remove the next action question
 		// const nextAction = room.actions.shift();
@@ -362,6 +408,11 @@ io.on("connection", (socket) => {
 		room.gameState.action.text = nextAction.statement;
 		room.gameState.action.reasoning = nextAction.reasoning;
 		room.gameState.action.action = nextAction.action;
+		room.gameState.action.name = nextAction.name;
+		room.gameState.action.texture = nextAction.texture;
+
+		// ✅ Increment version for state tracking
+		incrementGameStateVersion(room);
 
 		io.to(roomCode).emit("gameStateUpdated", {
 			gameState: room.gameState,
@@ -389,16 +440,20 @@ io.on("connection", (socket) => {
 		});
 	});
 
-	socket.on("cards:generate", ({ roomCode }) => {
+	socket.on("cards:generate", ({ roomCode, forceReset = false }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
 
 		const options = room.gameState.cardOptions;
 		const items = Object.keys(options);
 
+		console.log(`Generating cards for room ${roomCode}, forceReset: ${forceReset}`);
+
 		for (let i = 0; i < room.gameState.cards.length; i++) {
 			const card = room.gameState.cards[i];
-			if (!card.active) {
+			
+			// If forceReset is true, or card is not active, generate a new card
+			if (forceReset || !card.active) {
 				// pick random item type (T-shirt, Jeans, etc.)
 				const itemType =
 					items[Math.floor(Math.random() * items.length)];
@@ -418,20 +473,85 @@ io.on("connection", (socket) => {
 				card.selected = false;
 				card.title = choice.sort;
 				card.material = choice.material;
-				card.condition = choice.condition;
+				card.condition = condition;
 				card.item = itemType;
 				card.sort = choice.sort;
 				card.points = choice.value;
 				card.price = choice.price;
 				card.washed = false;
 
-				console.log("generated new card");
+				console.log(`Generated new card for slot ${i}: ${choice.sort} ${itemType}`);
 			}
 		}
+
+		// ✅ Increment version for state tracking
+		incrementGameStateVersion(room);
 
 		io.to(roomCode).emit("gameStateUpdated", {
 			gameState: room.gameState,
 		});
+	});
+
+	socket.on("cards:forceReset", ({ roomCode }) => {
+		console.log(`Force resetting all cards for room ${roomCode}`);
+		
+		// First, notify client to reset all cards
+		io.to(roomCode).emit("cardsForceReset");
+		
+		// Then regenerate all cards on server
+		const room = rooms[roomCode];
+		if (room) {
+			// Mark all cards as inactive to force regeneration
+			room.gameState.cards.forEach(card => {
+				card.active = false;
+			});
+			
+			// Generate new cards directly on server with forceReset flag
+			setTimeout(() => {
+				const options = room.gameState.cardOptions;
+				const items = Object.keys(options);
+
+				console.log(`Generating cards for room ${roomCode}, forceReset: true`);
+
+				for (let i = 0; i < room.gameState.cards.length; i++) {
+					const card = room.gameState.cards[i];
+					
+					// Generate a new card since forceReset is true
+					const itemType = items[Math.floor(Math.random() * items.length)];
+					const itemOptions = options[itemType];
+
+					// decide randomly between new or secondHand
+					const condition =
+						Math.random() < 0.5 && itemOptions.secondHand.length > 0
+							? "secondHand"
+							: "new";
+
+					const choices = itemOptions[condition];
+					const choice = choices[Math.floor(Math.random() * choices.length)];
+
+					card.active = true;
+					card.selected = false;
+					card.title = choice.sort;
+					card.material = choice.material;
+					card.condition = condition;
+					card.item = itemType;
+					card.sort = choice.sort;
+					card.points = choice.value;
+					card.price = choice.price;
+					card.washed = false;
+
+					console.log(`Generated new card for slot ${i}: ${choice.sort} ${itemType}`);
+				}
+
+				// ✅ Increment version for state tracking
+				incrementGameStateVersion(room);
+
+				// Broadcast updated game state to ALL players in the room
+				io.to(roomCode).emit("gameStateUpdated", {
+					gameState: room.gameState,
+				});
+			}, 100); // Small delay to ensure client reset completes first
+		}
 	});
 
 	socket.on("wardrobe:swap:init", ({ roomCode }) => {
@@ -703,7 +823,60 @@ io.on("connection", (socket) => {
 			return;
 		}
 
-		broadcastFullState(roomCode);
+		// Send full state only to the requesting player, not broadcast to all
+		socket.emit("fullState", {
+			players: room.players,
+			gameState: room.gameState,
+		});
+	});
+
+	// 🔄 State sync mechanism for handling tab visibility issues
+	socket.on("requestStateSync", ({ roomCode, clientStateVersion, playerId }) => {
+		const room = rooms[roomCode];
+		if (!room) {
+			console.log("room does not exist for sync:", roomCode);
+			return;
+		}
+
+		const serverVersion = room.gameState.version || 1;
+		const clientVersion = clientStateVersion || 0;
+
+		// If client is behind, send full state sync
+		if (clientVersion < serverVersion) {
+			console.log(`🔄 Client sync needed: client v${clientVersion} < server v${serverVersion}`);
+			socket.emit("fullStateSync", {
+				gameState: room.gameState,
+				players: room.players,
+				syncVersion: serverVersion,
+				timestamp: Date.now()
+			});
+		} else {
+			console.log(`✅ Client in sync: v${clientVersion}`);
+			socket.emit("stateSyncConfirmed", { 
+				version: serverVersion,
+				timestamp: Date.now() 
+			});
+		}
+	});
+
+	// 🔄 Handle client tab becoming active (visibility change)
+	socket.on("clientTabActive", ({ roomCode, playerId, lastClientUpdate }) => {
+		const room = rooms[roomCode];
+		if (!room) return;
+
+		const serverUpdate = room.gameState.lastUpdate || 0;
+		const clientUpdate = lastClientUpdate || 0;
+
+		// If server state changed while client was inactive, trigger full sync
+		if (serverUpdate > clientUpdate) {
+			console.log(`🔄 Tab active sync: server updated at ${serverUpdate}, client last saw ${clientUpdate}`);
+			socket.emit("fullStateSync", {
+				gameState: room.gameState,
+				players: room.players,
+				syncVersion: room.gameState.version,
+				timestamp: Date.now()
+			});
+		}
 	});
 
 	socket.on("disconnect", () => {
@@ -788,6 +961,8 @@ function broadcastFullState(roomCode) {
 }
 function createBaseGameState() {
 	return {
+		version: 1,
+		lastUpdate: Date.now(),
 		started: false,
 		phase: ["login", "game"],
 		phaseCounter: 0,
@@ -849,6 +1024,14 @@ function setDeepValue(obj, path, value) {
 		current = current[k];
 	}
 	current[keys[keys.length - 1]] = value;
+}
+
+// 🔄 Utility to increment game state version and update timestamp
+function incrementGameStateVersion(room) {
+	if (room && room.gameState) {
+		room.gameState.version++;
+		room.gameState.lastUpdate = Date.now();
+	}
 }
 
 app.get("/", (req, res) => {
