@@ -432,9 +432,28 @@ io.on("connection", (socket) => {
 	socket.on("wardrobe:add", ({ roomCode, playerId, data }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
-		room.players[playerId].wardrobe[data.type.toLowerCase()].items.push(
-			data
-		);
+		
+		const player = room.players[playerId];
+		const targetType = data.type.toLowerCase();
+		
+		// Check if the target wardrobe category has capacity
+		const wardrobeCategory = player.wardrobe[targetType];
+		const currentCount = wardrobeCategory ? wardrobeCategory.items.length : 0;
+		const maxCapacity = wardrobeCategory ? wardrobeCategory.max : 0;
+		
+		// If the target category is full (and not already excess), redirect to excess
+		let finalType = targetType;
+		if (targetType !== 'excess' && currentCount >= maxCapacity) {
+			console.log(`Wardrobe overflow: ${targetType} is full (${currentCount}/${maxCapacity}), redirecting to excess`);
+			finalType = 'excess';
+			data.type = 'excess'; // Update the item's type for consistency
+		}
+		
+		// Add item to the final determined category
+		player.wardrobe[finalType].items.push(data);
+		
+		console.log(`Added item to ${finalType}: ${data.title} ${data.item} (${player.wardrobe[finalType].items.length}/${player.wardrobe[finalType].max})`);
+		
 		io.to(roomCode).emit("playersUpdated", {
 			players: room.players,
 		});
