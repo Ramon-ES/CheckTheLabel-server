@@ -5,8 +5,27 @@ const { v4: uuidv4 } = require("uuid");
 const trivia = require("./trivia");
 const actions = require("./actions");
 const cardOptions = require("./cardOptions");
+const gameStatsService = require("./services/game-stats");
+const { initializeFirebase } = require("./firebase-config");
 const app = express();
 const server = http.createServer(app);
+
+// Initialize Firebase on startup
+initializeFirebase();
+
+// Clean up abandoned games every hour
+setInterval(() => {
+	gameStatsService.cleanupAbandonedGames().catch(err => {
+		console.error(`❌ Failed to cleanup abandoned games: ${err.message}`);
+	});
+}, 60 * 60 * 1000); // 1 hour
+
+// Run initial cleanup on startup
+setTimeout(() => {
+	gameStatsService.cleanupAbandonedGames().catch(err => {
+		console.error(`❌ Failed initial cleanup: ${err.message}`);
+	});
+}, 5000); // Wait 5 seconds after startup
 
 const io = new Server(server, {
 	cors: {
@@ -122,7 +141,7 @@ io.on("connection", (socket) => {
 
 	socket.on("createRoom", () => {
 		const roomCode = generateRoomCode();
-		rooms[roomCode] = createBaseRoom();
+		rooms[roomCode] = createBaseRoom(roomCode);
 
 		// store trivia
 		rooms[roomCode].trivia = shuffleArray([...trivia]);
@@ -229,6 +248,7 @@ io.on("connection", (socket) => {
 		
 		rooms[roomCode].players[playerId] = player;
 
+
 		// Send info back to this client
 		socket.emit("joinedRoom", {
 			playerId,
@@ -333,6 +353,21 @@ io.on("connection", (socket) => {
 		// ✅ Set nested value using the path
 		setDeepValue(room.gameState, path, value);
 		
+		// Initialize stats when game starts
+		if (path === 'started' && value === true && !room.statsInitialized) {
+			room.statsInitialized = true;
+			gameStatsService.initializeGame(room.gameId, roomCode, room.gameState, room.players).catch(err => {
+				console.error(`❌ Failed to initialize game stats: ${err.message}`);
+			});
+		}
+
+		// Update game progress during gameplay
+		if (room.statsInitialized && (path === 'roundCounter' || path === 'turnCounter' || path === 'microplastics')) {
+			gameStatsService.updateGameProgress(room.gameId, room.gameState).catch(err => {
+				console.error(`❌ Failed to update game progress: ${err.message}`);
+			});
+		}
+		
 		// ✅ Increment version for state tracking
 		incrementGameStateVersion(room);
 
@@ -384,6 +419,13 @@ io.on("connection", (socket) => {
 		room.gameState.trivia.wrong = nextTrivia.wrong || -2;
 		room.gameState.trivia.answer = nextTrivia.answer;
 
+		// Track trivia question
+		if (room.statsInitialized) {
+			gameStatsService.addTriviaQuestion(room.gameId, nextTrivia).catch(err => {
+				console.error(`❌ Failed to track trivia question: ${err.message}`);
+			});
+		}
+
 		// ✅ Increment version for state tracking
 		incrementGameStateVersion(room);
 
@@ -411,6 +453,13 @@ io.on("connection", (socket) => {
 		room.gameState.action.name = nextAction.name;
 		room.gameState.action.texture = nextAction.texture;
 
+		// Track action card
+		if (room.statsInitialized && room.gameState.currentTurnPlayerId) {
+			gameStatsService.addActionCard(room.gameId, nextAction, room.gameState.currentTurnPlayerId).catch(err => {
+				console.error(`❌ Failed to track action card: ${err.message}`);
+			});
+		}
+
 		// ✅ Increment version for state tracking
 		incrementGameStateVersion(room);
 
@@ -419,11 +468,20 @@ io.on("connection", (socket) => {
 		});
 	});
 
+
 	socket.on("money:add", ({ roomCode, playerId, amount }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
 
 		room.players[playerId].money += amount;
+
+		// Update player data in stats
+		if (room.statsInitialized) {
+			gameStatsService.updatePlayerData(room.gameId, playerId, room.players[playerId]).catch(err => {
+				console.error(`❌ Failed to update player data: ${err.message}`);
+			});
+		}
+		
 		io.to(roomCode).emit("playersUpdated", {
 			players: room.players,
 		});
@@ -451,6 +509,17 @@ io.on("connection", (socket) => {
 		
 		// Add item to the final determined category
 		player.wardrobe[finalType].items.push(data);
+
+		// Update player data in stats and track clothing card
+		if (room.statsInitialized) {
+			gameStatsService.updatePlayerData(room.gameId, playerId, player).catch(err => {
+				console.error(`❌ Failed to update player data: ${err.message}`);
+			});
+			
+			gameStatsService.addClothingCard(room.gameId, data, playerId).catch(err => {
+				console.error(`❌ Failed to track clothing card: ${err.message}`);
+			});
+		}
 		
 		console.log(`Added item to ${finalType}: ${data.title} ${data.item} (${player.wardrobe[finalType].items.length}/${player.wardrobe[finalType].max})`);
 		
@@ -828,6 +897,14 @@ io.on("connection", (socket) => {
 
 		if (reason) {
 			room.gameState.ended = reason;
+			
+			// Finalize game statistics
+			if (room.statsInitialized) {
+				gameStatsService.finalizeGame(room.gameId, reason).catch(err => {
+					console.error(`❌ Failed to finalize game stats: ${err.message}`);
+				});
+			}
+			
 			io.to(roomCode).emit("game:ended", {
 				reason,
 				gameState: room.gameState,
@@ -1025,11 +1102,14 @@ function createBaseGameState() {
 		timer: 0,
 	};
 }
-function createBaseRoom() {
+function createBaseRoom(roomCode) {
+	const gameId = uuidv4();
 	return {
+		gameId,
 		players: {},
 		gameState: createBaseGameState(),
 		timeoutId: null,
+		statsInitialized: false
 	};
 }
 
@@ -1052,6 +1132,7 @@ function incrementGameStateVersion(room) {
 		room.gameState.lastUpdate = Date.now();
 	}
 }
+
 
 app.get("/", (req, res) => {
 	res.send("🟢 Multiplayer server running");
