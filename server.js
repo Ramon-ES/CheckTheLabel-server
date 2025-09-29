@@ -34,10 +34,21 @@ const stepData = {
 const CPU_CONFIG = {
 	maxPlayers: 4,
 	cpuPlayerCount: 3, // Number of CPU players to add when only 1 human player
-	cpuNames: ["ALEX", "MAYA", "SAM", "ZARA", "KYLE", "NINA", "JADE", "RYAN"],
+	cpuNames: ["ALEX", "MAYA", "SAM", "ZARA", "KYLE", "NINA", "JADE", "RYAN", "EMMA", "LIAM", "ANYA", "OMAR", "SAGE", "FINN", "LUNA", "DREW", "IRIS", "EZRA", "NOVA", "JUDE", "WREN", "SETH", "VERA", "KAI"],
 	decisionDelays: {
 		min: 1000, // Minimum delay for CPU decisions (ms)
 		max: 3000, // Maximum delay for CPU decisions (ms)
+	},
+	turnStartDelays: {
+		// Delay before CPU starts their turn (in milliseconds)
+		normal: {
+			min: 3000,  // Normal day minimum delay
+			max: 5000   // Normal day maximum delay
+		},
+		washday: {
+			min: 17000,  // Sunday washday minimum delay
+			max: 19000   // Sunday washday maximum delay
+		}
 	}
 };
 
@@ -54,7 +65,8 @@ class Player {
 		this.money = 0;
 		this.points = 0;
 		this.roundData = {};
-		for (let i = 0; i < 7; i++) {
+		// Initialize roundData for up to 20 rounds (should be more than enough)
+		for (let i = 0; i < 20; i++) {
 			this.roundData[i] = {
 				step1: { money: undefined, action: undefined },
 				step2: { money: undefined, action: undefined },
@@ -85,6 +97,7 @@ class Player {
 			},
 		};
 		this.clothingItems = 0;
+		this.tabActive = true; // Track if player's tab is active
 	}
 
 	generateCPUName() {
@@ -188,6 +201,23 @@ function getRandomDelay() {
 	return Math.random() * (CPU_CONFIG.decisionDelays.max - CPU_CONFIG.decisionDelays.min) + CPU_CONFIG.decisionDelays.min;
 }
 
+function getCPUTurnStartDelay(roomCode) {
+	const room = rooms[roomCode];
+	if (!room) return CPU_CONFIG.turnStartDelays.normal.min;
+
+	const gameDay = room.gameState.roundCounter % 7; // 0=Monday, 1=Tuesday, 2=Wednesday, 3=Thursday, 4=Friday, 5=Saturday, 6=Sunday
+	const isWashday = (gameDay === 6); // Sunday is washday
+
+	const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+	const dayName = weekdays[gameDay];
+
+	const delayConfig = isWashday ? CPU_CONFIG.turnStartDelays.washday : CPU_CONFIG.turnStartDelays.normal;
+	const delay = Math.random() * (delayConfig.max - delayConfig.min) + delayConfig.min;
+
+	console.log(`🗓️ Game day is ${dayName}${isWashday ? ' (WASHDAY)' : ''}, CPU turn start delay: ${Math.round(delay)}ms`);
+	return delay;
+}
+
 // CPU Decision Making Functions  
 function simulateCPUStep1Roll(roomCode, cpuPlayerId) {
 	if (!rooms[roomCode]) return;
@@ -200,7 +230,7 @@ function simulateCPUStep1Roll(roomCode, cpuPlayerId) {
 	
 	// Simulate clicking the Step 0 button (like human players do)
 	// This will trigger the frontend to call generateDices() and handle all the timing naturally
-	io.to(roomCode).emit("fireEvent", { 
+	emitOrQueue(roomCode, "fireEvent", {
 		event: 'cpu:clickButton',
 		stepIndex: 0,
 		playerId: cpuPlayerId
@@ -218,7 +248,7 @@ function simulateCPUStep2Action(roomCode, cpuPlayerId, data) {
 	
 	// Simulate clicking the Step 1 button (like human players do)
 	// This will trigger Network.fire(`show:${this.actionDraw}`) naturally
-	io.to(roomCode).emit("fireEvent", { 
+	emitOrQueue(roomCode, "fireEvent", {
 		event: 'cpu:clickButton',
 		stepIndex: 1,
 		playerId: cpuPlayerId
@@ -246,7 +276,7 @@ function simulateCPUTrivia(roomCode, cpuPlayerId) {
 		}
 		
 		// Broadcast the update
-		io.to(roomCode).emit("game:update", {
+		emitOrQueue(roomCode, "game:update", {
 			gameState: room.gameState,
 		});
 		io.to(roomCode).emit("players:update", {
@@ -260,35 +290,14 @@ function simulateCPUTrivia(roomCode, cpuPlayerId) {
 
 function simulateCPUAction(roomCode, cpuPlayerId, actionData) {
 	if (!rooms[roomCode]) return;
-	
+
 	const room = rooms[roomCode];
 	const cpuPlayer = room.players[cpuPlayerId];
 	if (!cpuPlayer || !cpuPlayer.isCPU) return;
-	
-	setTimeout(() => {
-		// CPU makes random decisions for actions
-		console.log(`🤖 CPU ${cpuPlayer.username} is processing action: ${actionData.name}`);
-		
-		// Apply action effects (simplified version)
-		if (actionData.money) {
-			cpuPlayer.money += actionData.money;
-		}
-		if (actionData.microplastics) {
-			room.gameState.microplastics = Math.max(0, Math.min(room.gameState.microplasticsMax, 
-				room.gameState.microplastics + actionData.microplastics));
-		}
-		
-		// Broadcast the update
-		io.to(roomCode).emit("game:update", {
-			gameState: room.gameState,
-		});
-		io.to(roomCode).emit("players:update", {
-			players: room.players,
-		});
-		
-		// Let frontend handle step advancement naturally after action completion
-		
-	}, getRandomDelay());
+
+	// The client-side action.js already handles CPU actions automatically
+	// with auto-click after 3 seconds. No server-side processing needed.
+	console.log(`🤖 CPU ${cpuPlayer.username} action will be handled by client-side auto-click`);
 }
 
 function simulateCPUCardDecision(roomCode, cpuPlayerId, cards) {
@@ -299,50 +308,57 @@ function simulateCPUCardDecision(roomCode, cpuPlayerId, cards) {
 	if (!cpuPlayer || !cpuPlayer.isCPU) return;
 	
 	setTimeout(() => {
+		console.log(`🤖 CPU ${cpuPlayer.username} analyzing cards for purchase (budget: $${cpuPlayer.money})`);
+
 		// CPU selects cards based on simple heuristics
-		const selectedCards = [];
+		const selectedCardIndices = [];
 		const budget = cpuPlayer.money;
 		let remainingBudget = budget;
-		
+
 		// Sort cards by value/price ratio (prefer better deals)
-		const sortedCards = [...cards].sort((a, b) => {
-			const ratioA = (a.points || 0) / Math.max(a.price || 1, 1);
-			const ratioB = (b.points || 0) / Math.max(b.price || 1, 1);
-			return ratioB - ratioA;
-		});
-		
-		// Select cards that fit budget and wardrobe space
+		const sortedCards = [...cards].map((card, index) => ({ ...card, originalIndex: index }))
+			.sort((a, b) => {
+				const ratioA = (a.points || 0) / Math.max(a.price || 1, 1);
+				const ratioB = (b.points || 0) / Math.max(b.price || 1, 1);
+				return ratioB - ratioA;
+			});
+
+		// Select cards that fit budget and wardrobe space (but don't actually purchase yet)
 		for (const card of sortedCards) {
 			const price = card.price || 0;
 			if (price <= remainingBudget) {
 				const wardrobeCategory = card.type?.toLowerCase() || 'excess';
 				const wardrobe = cpuPlayer.wardrobe[wardrobeCategory] || cpuPlayer.wardrobe.excess;
-				
+
 				if (wardrobe.items.length < wardrobe.max) {
-					selectedCards.push(card);
+					selectedCardIndices.push(card.originalIndex);
 					remainingBudget -= price;
-					
-					// Simulate adding card to wardrobe
-					wardrobe.items.push(card);
-					cpuPlayer.money -= price;
-					cpuPlayer.points += card.points || 0;
-					cpuPlayer.clothingItems++;
+					console.log(`🤖 CPU ${cpuPlayer.username} selecting card ${card.originalIndex}: ${card.title} ${card.type} for $${price}`);
 				}
 			}
 		}
-		
-		console.log(`🤖 CPU ${cpuPlayer.username} selected ${selectedCards.length} cards for $${budget - remainingBudget}`);
-		
-		// Broadcast the update
-		io.to(roomCode).emit("players:update", {
-			players: room.players,
+
+		console.log(`🤖 CPU ${cpuPlayer.username} selected ${selectedCardIndices.length} cards for $${budget - remainingBudget}`);
+
+		// Store whether CPU selected any cards for later use
+		cpuPlayer.hasSelectedCards = selectedCardIndices.length > 0;
+		cpuPlayer.selectedCardIndices = selectedCardIndices;
+
+		// Mark selected cards in game state (like clicking on cards)
+		selectedCardIndices.forEach(cardIndex => {
+			setDeepValue(room.gameState, `cards[${cardIndex}].selected`, true);
 		});
-		
-		console.log(`🛒 CPU ${cpuPlayer.username} completed shopping decisions`);
-		
-		// Instead of immediately advancing the turn, let the frontend naturally complete the shopping phase
-		// The turn will advance when the step counter goes back to 0 naturally
-		
+
+		// Increment version for state tracking
+		incrementGameStateVersion(room);
+
+		// Broadcast the card selection update
+		io.to(roomCode).emit("gameStateUpdated", {
+			gameState: room.gameState,
+		});
+
+		console.log(`🛒 CPU ${cpuPlayer.username} completed card selection, will purchase after delay`);
+
 	}, getRandomDelay());
 }
 
@@ -366,10 +382,10 @@ function simulateCPUFireEvent(roomCode, cpuPlayerId, event, args = {}) {
 		
 		console.log(`🤖 CPU ${currentPlayer.username} firing event: ${event}`, args);
 		// Emit the same fireEvent that human players would trigger
-		io.to(roomCode).emit("fireEvent", { 
-			event, 
+		emitOrQueue(roomCode, "fireEvent", {
+			event,
 			playerId: cpuPlayerId,
-			...args 
+			...args
 		});
 	}, delay);
 }
@@ -486,6 +502,11 @@ io.on("connection", (socket) => {
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
 		});
+
+		// For CPU games, resend latest event in case game was stuck
+		setTimeout(() => {
+			resendLatestEventToCPUPlayer(roomCode, playerId);
+		}, 1500);
 	});
 
 	socket.on("updateUsername", ({ playerId, newUsername }) => {
@@ -571,6 +592,11 @@ io.on("connection", (socket) => {
 			gameState: rooms[roomCode].gameState,
 		});
 
+		// For CPU games, resend latest event in case game was stuck
+		setTimeout(() => {
+			resendLatestEventToCPUPlayer(roomCode, playerId);
+		}, 1500);
+
 		// Notify others
 		socket.to(roomCode).emit("playerJoined", {
 			playerId,
@@ -619,6 +645,9 @@ io.on("connection", (socket) => {
 			room.timeoutId = null;
 			console.log(`✅ Cancelled deletion timeout for room ${roomCode}`);
 		}
+
+		// For CPU games, resend the latest event to help unstick the game
+		resendLatestEventToCPUPlayer(roomCode, playerId);
 	});
 
 	socket.on("positionUpdate", (data) => {
@@ -742,19 +771,19 @@ io.on("connection", (socket) => {
 		const currentPlayer = room.players[currentPlayerId];
 		
 		console.log(`🔍 CPU Decision Check - path: ${path}, value: ${value}, currentPlayer: ${currentPlayer?.username}, isCPU: ${currentPlayer?.isCPU}`);
-		
+
 		if (currentPlayer && currentPlayer.isCPU && room.gameState.currentPhase === 'game') {
 			// Only trigger CPU actions if the game is in the right state
 			const gameState = room.gameState;
-			
+
 			// If stepCounter changed to 0 (start of turn), CPU needs to roll dice
 			// But only if no cards are selected and not purchased
 			if (path === "stepCounter" && value === 0 && !gameState.cards?.some(card => card.selected)) {
-				console.log(`🤖 Step 0: CPU ${currentPlayer.username} will roll dice after frontend updates`);
-				// Add human-like delay before rolling dice (1-3 seconds)
+				console.log(`🤖 Step 0: CPU ${currentPlayer.username} will roll dice after turn start delay`);
+				// Add configurable delay based on day of the week (longer on washday Sunday)
 				setTimeout(() => {
 					triggerCPUDecisions(roomCode, 'step1');
-				}, Math.random() * 2000 + 1000);
+				}, getCPUTurnStartDelay(roomCode));
 			}
 			// If stepCounter changed to 1, CPU needs to execute step 2 action
 			// But only if no trivia/action is currently active
@@ -765,13 +794,42 @@ io.on("connection", (socket) => {
 					triggerCPUDecisions(roomCode, 'step2');
 				}, Math.random() * 2000 + 2000);
 			}
+			// If stepCounter changed to 2 (card purchasing step), CPU should analyze and select cards
+			else if (path === "stepCounter" && value === 2) {
+				console.log(`🤖 Step 2: CPU ${currentPlayer.username} is now in card purchasing phase`);
+
+				// First, trigger card analysis and selection
+				const activeCards = gameState.cards?.filter(card => card.active) || [];
+				if (activeCards.length > 0) {
+					console.log(`🤖 CPU ${currentPlayer.username} will analyze ${activeCards.length} available cards`);
+					triggerCPUDecisions(roomCode, 'cards', { cards: activeCards });
+				}
+
+				// Then after a longer delay, make the purchase decision
+				setTimeout(() => {
+					// Check if CPU selected any cards (hasSelectedCards was set during simulateCPUCardDecision)
+					if (currentPlayer.hasSelectedCards === false) {
+						console.log(`🤖 CPU ${currentPlayer.username} can't afford any cards, will buy nothing`);
+						emitOrQueue(roomCode, "fireEvent", {
+							event: "cpu:buyNothing",
+							playerId: currentPlayerId
+						});
+					} else if (currentPlayer.hasSelectedCards === true) {
+						console.log(`🤖 CPU ${currentPlayer.username} has selected cards, will click purchase button`);
+						emitOrQueue(roomCode, "fireEvent", {
+							event: "cpu:purchase",
+							playerId: currentPlayerId
+						});
+					}
+				}, Math.random() * 3000 + 3000); // Longer delay to allow card selection to complete
+			}
 			// If turn just changed to this CPU player and we're at step 0
 			else if (path === "currentTurnPlayerId" && value === currentPlayerId && gameState.stepCounter === 0) {
-				console.log(`🤖 Turn changed to CPU ${currentPlayer.username}, will start dice roll after frontend updates`);
-				// Add human-like delay before rolling dice (1-3 seconds)
+				console.log(`🤖 Turn changed to CPU ${currentPlayer.username}, will start after turn delay`);
+				// Add configurable delay based on day of the week (longer on washday Sunday)
 				setTimeout(() => {
 					triggerCPUDecisions(roomCode, 'step1');
-				}, Math.random() * 2000 + 1000);
+				}, getCPUTurnStartDelay(roomCode));
 			}
 		}
 		
@@ -952,11 +1010,7 @@ io.on("connection", (socket) => {
 			gameState: room.gameState,
 		});
 
-		// Trigger CPU card selection decisions
-		const activeCards = room.gameState.cards.filter(card => card.active);
-		if (activeCards.length > 0) {
-			triggerCPUDecisions(roomCode, 'cards', { cards: activeCards });
-		}
+		// Cards are generated, but CPU will only analyze them when they reach step 2
 	});
 
 	socket.on("cards:forceReset", ({ roomCode }) => {
@@ -1099,7 +1153,7 @@ io.on("connection", (socket) => {
 
 		console.log("canSwap final:", canSwap);
 
-		io.to(roomCode).emit("fireEvent", {
+		emitOrQueue(roomCode, "fireEvent", {
 			event: "action:swap:random",
 			data: {
 				currentPlayerId,
@@ -1269,10 +1323,21 @@ io.on("connection", (socket) => {
 				const actionDraw = actionArray[actionArray.length - 1];
 				const currentRound = room.gameState.roundCounter;
 				
-				console.log(`💰 Processing dice roll for ${player.username}: +${moneyDraw} money, action: ${actionDraw}`);
-				
+				console.log(`💰 Processing dice roll for ${player.username}: +${moneyDraw} money, action: ${actionDraw} (round ${currentRound})`);
+
 				// Update player money and round data
 				player.money += moneyDraw;
+
+				// Ensure roundData exists for this round
+				if (!player.roundData[currentRound]) {
+					console.log(`⚠️ Creating missing roundData for round ${currentRound} for player ${player.username}`);
+					player.roundData[currentRound] = {
+						step1: { money: undefined, action: undefined },
+						step2: { money: undefined, action: undefined },
+						step3: { money: undefined, action: undefined },
+					};
+				}
+
 				player.roundData[currentRound].step1.money = moneyDraw;
 				player.roundData[currentRound].step1.action = actionDraw;
 				
@@ -1291,7 +1356,7 @@ io.on("connection", (socket) => {
 		}
 
 		// Forward the entire args array to everyone in the room
-		io.to(roomCode).emit("fireEvent", { event, ...args });
+		emitOrQueue(roomCode, "fireEvent", { event, ...args });
 	});
 
 	socket.on("checkIfEnd", ({ roomCode }) => {
@@ -1407,6 +1472,30 @@ io.on("connection", (socket) => {
 				decisionDelays: CPU_CONFIG.decisionDelays
 			});
 		}
+	});
+
+	// Tab visibility event handlers
+	socket.on("playerTabInactive", ({ roomCode, playerId }) => {
+		if (!rooms[roomCode] || !rooms[roomCode].players[playerId]) return;
+
+		const room = rooms[roomCode];
+		const player = room.players[playerId];
+		player.tabActive = false;
+
+		console.log(`🔄 Player ${player.username} tab became inactive in room ${roomCode}`);
+	});
+
+	socket.on("playerTabActive", ({ roomCode, playerId }) => {
+		if (!rooms[roomCode] || !rooms[roomCode].players[playerId]) return;
+
+		const room = rooms[roomCode];
+		const player = room.players[playerId];
+		player.tabActive = true;
+
+		console.log(`🔄 Player ${player.username} tab became active in room ${roomCode}`);
+
+		// Send any queued events to the now-active player
+		flushQueuedEventsToPlayer(roomCode, playerId);
 	});
 
 	socket.on("disconnect", () => {
@@ -1549,6 +1638,8 @@ function createBaseRoom() {
 		players: {},
 		gameState: createBaseGameState(),
 		timeoutId: null,
+		queuedEvents: [], // Queue events for inactive single players
+		lastGameEvent: null, // Track latest game event for CPU games
 	};
 }
 
@@ -1569,6 +1660,166 @@ function incrementGameStateVersion(room) {
 	if (room && room.gameState) {
 		room.gameState.version++;
 		room.gameState.lastUpdate = Date.now();
+	}
+}
+
+// 🔄 Tab Visibility Event Queuing Functions
+function shouldQueueEvent(roomCode, eventName) {
+	if (!rooms[roomCode]) return false;
+
+	const room = rooms[roomCode];
+	const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+
+	// Only queue events if:
+	// 1. There's exactly one human player (single player with CPUs)
+	// 2. That player's tab is inactive
+	// 3. The event is a game-changing event (not UI updates)
+	if (humanPlayers.length === 1) {
+		const singlePlayer = humanPlayers[0];
+		if (!singlePlayer.tabActive) {
+			// Queue important game events that should wait for player attention
+			const gameEventTypes = ['fireEvent', 'game:update', 'action:get', 'trivia:get'];
+			return gameEventTypes.some(type => eventName.includes(type));
+		}
+	}
+
+	return false;
+}
+
+function queueEventForPlayer(roomCode, eventName, eventData) {
+	if (!rooms[roomCode]) return false;
+
+	const room = rooms[roomCode];
+	const queuedEvent = {
+		eventName,
+		eventData,
+		timestamp: Date.now()
+	};
+
+	room.queuedEvents.push(queuedEvent);
+	console.log(`📥 Queued event ${eventName} for inactive player in room ${roomCode}`);
+	return true;
+}
+
+function flushQueuedEventsToPlayer(roomCode, playerId) {
+	if (!rooms[roomCode]) return;
+
+	const room = rooms[roomCode];
+	if (room.queuedEvents.length === 0) return;
+
+	console.log(`📤 Flushing ${room.queuedEvents.length} queued events to player ${playerId} in room ${roomCode}`);
+
+	// Send all queued events to the room (since there's only one human player)
+	room.queuedEvents.forEach(({ eventName, eventData }) => {
+		io.to(roomCode).emit(eventName, eventData);
+	});
+
+	// Clear the queue
+	room.queuedEvents = [];
+}
+
+// 🔄 Smart event emission that queues events for inactive single players
+function emitOrQueue(roomCode, eventName, eventData) {
+	if (!rooms[roomCode]) return;
+
+	// Track important game events for CPU games
+	if (isImportantGameEvent(eventName)) {
+		rooms[roomCode].lastGameEvent = {
+			eventName,
+			eventData,
+			timestamp: Date.now()
+		};
+	}
+
+	if (shouldQueueEvent(roomCode, eventName)) {
+		queueEventForPlayer(roomCode, eventName, eventData);
+	} else {
+		io.to(roomCode).emit(eventName, eventData);
+	}
+}
+
+function isImportantGameEvent(eventName) {
+	// Events that might be needed to unstick the game flow
+	const importantEvents = ['fireEvent', 'game:update', 'action:get', 'trivia:get'];
+	return importantEvents.some(type => eventName.includes(type));
+}
+
+function isCPUGame(roomCode) {
+	if (!rooms[roomCode]) return false;
+
+	const room = rooms[roomCode];
+	const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+	const cpuPlayers = Object.values(room.players).filter(p => p.isCPU);
+
+	// It's a CPU game if there are CPU players and only 1 human player
+	return humanPlayers.length === 1 && cpuPlayers.length > 0;
+}
+
+function resendLatestEventToCPUPlayer(roomCode, playerId) {
+	if (!rooms[roomCode] || !isCPUGame(roomCode)) return;
+
+	const room = rooms[roomCode];
+
+	// First, resend the latest game event if it exists and is recent
+	if (room.lastGameEvent) {
+		const eventAge = Date.now() - room.lastGameEvent.timestamp;
+		// Only resend events that are less than 30 seconds old
+		if (eventAge <= 30000) {
+			console.log(`🔄 Resending latest event to rejoined player ${playerId} in CPU game ${roomCode}:`, room.lastGameEvent.eventName);
+
+			// Send the latest game event to help unstick the game
+			setTimeout(() => {
+				io.to(roomCode).emit(room.lastGameEvent.eventName, room.lastGameEvent.eventData);
+			}, 1000); // Small delay to let the client fully reconnect
+		}
+	}
+
+	// More importantly, check if it's currently a CPU's turn and restart their logic if needed
+	const currentTurnPlayerId = room.gameState.currentTurnPlayerId;
+	const currentPlayer = room.players[currentTurnPlayerId];
+
+	if (currentPlayer && currentPlayer.isCPU && room.gameState.currentPhase === 'game') {
+		console.log(`🤖 Detected CPU ${currentPlayer.username} should be active, restarting turn logic after refresh`);
+
+		// Wait a bit for the client to fully load, then restart CPU logic
+		setTimeout(() => {
+			const gameState = room.gameState;
+
+			// Restart CPU logic based on current step
+			if (gameState.stepCounter === 0) {
+				// CPU should be rolling dice or starting their turn
+				console.log(`🔄 Restarting CPU ${currentPlayer.username} at step 0 (dice roll)`);
+				triggerCPUDecisions(roomCode, 'step1');
+			} else if (gameState.stepCounter === 1 && !gameState.trivia?.active && !gameState.action?.active) {
+				// CPU should be executing step 2 action
+				console.log(`🔄 Restarting CPU ${currentPlayer.username} at step 1 (action)`);
+				triggerCPUDecisions(roomCode, 'step2');
+			} else if (gameState.stepCounter === 2) {
+				// CPU should be in card purchasing phase
+				console.log(`🔄 Restarting CPU ${currentPlayer.username} at step 2 (card purchasing)`);
+				const activeCards = gameState.cards?.filter(card => card.active) || [];
+				if (activeCards.length > 0) {
+					triggerCPUDecisions(roomCode, 'cards', { cards: activeCards });
+
+					// Also trigger purchase decision after delay if they haven't already decided
+					setTimeout(() => {
+						if (currentPlayer.hasSelectedCards === false) {
+							console.log(`🤖 CPU ${currentPlayer.username} will buy nothing after restart`);
+							emitOrQueue(roomCode, "fireEvent", {
+								event: "cpu:buyNothing",
+								playerId: currentTurnPlayerId
+							});
+						} else if (currentPlayer.hasSelectedCards === true) {
+							console.log(`🤖 CPU ${currentPlayer.username} will purchase selected cards after restart`);
+							emitOrQueue(roomCode, "fireEvent", {
+								event: "cpu:purchase",
+								playerId: currentTurnPlayerId
+							});
+						}
+					}, Math.random() * 3000 + 3000);
+				}
+			}
+		}, 2000); // Give client time to fully load before restarting CPU logic
 	}
 }
 

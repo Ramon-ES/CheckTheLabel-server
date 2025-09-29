@@ -283,7 +283,7 @@ const actions = [
 	},
 	{
 		name: "catchupshoppinghabits",
-		texture: "action-p-catchupshoppinghabits.png",
+		texture: "action-p-shoppinghabits.png",
 		title: "Catch up: Shopping Habits",
 		statement:
 			"Your friends are switching to natural and second-hand clothes. You rise to the challenge - good for your style and for your wallet! Gain 2 euros.",
