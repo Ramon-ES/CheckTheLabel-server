@@ -33,7 +33,7 @@ const stepData = {
 // CPU Player Configuration
 const CPU_CONFIG = {
 	maxPlayers: 4,
-	cpuPlayerCount: 3, // Number of CPU players to add when only 1 human player
+	cpuPlayerCount: 1, // Number of CPU players to add when only 1 human player
 	cpuNames: ["ALEX", "MAYA", "SAM", "ZARA", "KYLE", "NINA", "JADE", "RYAN", "EMMA", "LIAM", "ANYA", "OMAR", "SAGE", "FINN", "LUNA", "DREW", "IRIS", "EZRA", "NOVA", "JUDE", "WREN", "SETH", "VERA", "KAI"],
 	decisionDelays: {
 		min: 1000, // Minimum delay for CPU decisions (ms)
@@ -42,12 +42,12 @@ const CPU_CONFIG = {
 	turnStartDelays: {
 		// Delay before CPU starts their turn (in milliseconds)
 		normal: {
-			min: 3000,  // Normal day minimum delay
-			max: 5000   // Normal day maximum delay
+			min: 4000,  // Normal day minimum delay
+			max: 6000   // Normal day maximum delay
 		},
 		washday: {
-			min: 17000,  // Sunday washday minimum delay
-			max: 19000   // Sunday washday maximum delay
+			min: 18000,  // Sunday washday minimum delay
+			max: 20000   // Sunday washday maximum delay
 		}
 	}
 };
