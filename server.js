@@ -446,9 +446,18 @@ function triggerCPUDecisions(roomCode, eventType, data = {}) {
 
 io.on("connection", (socket) => {
 	console.log(`✅ Client connected: ${socket.id}`);
-	
+
 	// Store persistent username across rooms for this socket
 	socket.persistentUsername = null;
+
+	// Send initial username immediately upon connection
+	const initialUsername = generateUsername();
+	socket.emit("initialConnection", {
+		playerId: socket.id,
+		player: {
+			username: initialUsername
+		}
+	});
 
 	socket.on("getFullState", () => {
 		const roomCode = socket.roomCode;
@@ -491,8 +500,110 @@ io.on("connection", (socket) => {
 		socket.roomCode = roomCode;
 		// socket.playerId = socket.id;
 
-		// Add CPU players if this is the first (and only) human player
+		// Don't add CPU players for regular room creation - only for startAlone
+		// addCPUPlayers(roomCode);
+
+		// Set phase to "room" for multiplayer room creation
+		rooms[roomCode].gameState.currentPhase = "room";
+
+		socket.emit("roomCreated", { roomCode });
+		socket.emit("joinedRoom", {
+			id: socket.id,
+			playerId: playerId,
+			roomCode: roomCode,
+			players: rooms[roomCode].players,
+			gameState: rooms[roomCode].gameState,
+		});
+
+		// For CPU games, resend latest event in case game was stuck
+		setTimeout(() => {
+			resendLatestEventToCPUPlayer(roomCode, playerId);
+		}, 1500);
+	});
+
+	socket.on("startAlone", () => {
+		const roomCode = generateRoomCode();
+		rooms[roomCode] = createBaseRoom();
+
+		// store trivia
+		rooms[roomCode].trivia = shuffleArray([...trivia]);
+
+		// store action
+		rooms[roomCode].actions = shuffleArray([...actions]);
+
+		// Generate a persistent playerId
+		const playerId = uuidv4();
+		socket.playerId = playerId;
+
+		// Create new player
+		const player = new Player(playerId);
+
+		// Use persistent username if available
+		if (socket.persistentUsername) {
+			player.username = socket.persistentUsername;
+		}
+
+		rooms[roomCode].players[playerId] = player;
+
+		socket.join(roomCode);
+		socket.roomCode = roomCode;
+
+		// Add CPU players for single player game
 		addCPUPlayers(roomCode);
+
+		// Immediately start the game since this is single player mode
+		rooms[roomCode].gameState.currentPhase = "game";
+		rooms[roomCode].gameState.started = true;
+
+		// Set up turn order - human player first, then CPU players
+		const playerIds = Object.keys(rooms[roomCode].players).filter(id => rooms[roomCode].players[id].active);
+		const sortedPlayerIds = playerIds.sort((a, b) => {
+			const playerA = rooms[roomCode].players[a];
+			const playerB = rooms[roomCode].players[b];
+			if (playerA.isCPU && !playerB.isCPU) return 1; // CPU comes after human
+			if (!playerA.isCPU && playerB.isCPU) return -1; // Human comes before CPU
+			return 0;
+		});
+
+		rooms[roomCode].gameState.turnOrder = sortedPlayerIds;
+		rooms[roomCode].gameState.currentTurnIndex = 0;
+		rooms[roomCode].gameState.currentTurnPlayerId = sortedPlayerIds[0];
+
+		// Generate initial cards for the clothing market
+		const options = rooms[roomCode].gameState.cardOptions;
+		const items = Object.keys(options);
+
+		for (let i = 0; i < rooms[roomCode].gameState.cards.length; i++) {
+			const card = rooms[roomCode].gameState.cards[i];
+
+			// Generate a new card for each slot
+			const itemType = items[Math.floor(Math.random() * items.length)];
+			const itemOptions = options[itemType];
+
+			// decide randomly between new or secondHand
+			const condition =
+				Math.random() < 0.5 && itemOptions.secondHand.length > 0
+					? "secondHand"
+					: "new";
+
+			const choices = itemOptions[condition];
+			const choice = choices[Math.floor(Math.random() * choices.length)];
+
+			card.active = true;
+			card.selected = false;
+			card.title = choice.sort;
+			card.material = choice.material;
+			card.condition = condition;
+			card.item = itemType;
+			card.sort = choice.sort;
+			card.points = choice.value;
+			card.price = choice.price;
+			card.washed = false;
+
+			console.log(`Generated initial card for slot ${i}: ${choice.sort} ${itemType}`);
+		}
+
+		console.log(`🤖 Started single player game in room ${roomCode} with ${sortedPlayerIds.length} players`);
 
 		socket.emit("roomCreated", { roomCode });
 		socket.emit("joinedRoom", {
@@ -582,6 +693,11 @@ io.on("connection", (socket) => {
 		const humanPlayerCount = Object.values(rooms[roomCode].players).filter(p => !p.isCPU).length;
 		if (humanPlayerCount > 1) {
 			removeCPUPlayers(roomCode);
+		}
+
+		// Set phase to "room" when joining a room (if not already started)
+		if (rooms[roomCode].gameState.currentPhase === "login") {
+			rooms[roomCode].gameState.currentPhase = "room";
 		}
 
 		// Send info back to this client
@@ -1532,6 +1648,75 @@ io.on("connection", (socket) => {
 			}, 5 * 60 * 1000); // 5 minutes
 		}
 	});
+	socket.on("removePlayer", ({ roomCode, playerId }) => {
+		const room = rooms[roomCode];
+		if (!room) {
+			socket.emit("error", { message: "Room not found" });
+			return;
+		}
+
+		// Check if the requesting socket is the host (first player in the room)
+		const playerIds = Object.keys(room.players);
+		const isHost = playerIds.length > 0 && playerIds[0] === socket.playerId;
+
+		if (!isHost) {
+			socket.emit("error", { message: "Only the host can remove players" });
+			return;
+		}
+
+		// Can't remove the host (themselves)
+		if (playerId === socket.playerId) {
+			socket.emit("error", { message: "Host cannot remove themselves" });
+			return;
+		}
+
+		// Check if player exists in the room
+		if (!room.players[playerId]) {
+			socket.emit("error", { message: "Player not found in room" });
+			return;
+		}
+
+		console.log(`🦵 Host ${socket.playerId} removing player ${playerId} from room ${roomCode}`);
+
+		// Remove the player from the room
+		delete room.players[playerId];
+
+		// Notify all players in the room that someone was removed
+		io.to(roomCode).emit("playerLeft", {
+			playerId: playerId,
+			roomCode: roomCode,
+			players: room.players,
+			gameState: room.gameState,
+		});
+
+		// Find the socket of the removed player and force them to leave
+		// Note: This is a simplified approach - in production you'd want to track socket IDs properly
+		const allSockets = io.sockets.sockets;
+		for (const [socketId, playerSocket] of allSockets) {
+			if (playerSocket.playerId === playerId && playerSocket.roomCode === roomCode) {
+				// Force the removed player back to login screen
+				playerSocket.emit("removedFromRoom", {
+					reason: "You were removed from the room by the host"
+				});
+				playerSocket.leave(roomCode);
+				delete playerSocket.roomCode;
+				delete playerSocket.playerId;
+				break;
+			}
+		}
+
+		console.log(`✅ Player ${playerId} removed from room ${roomCode}`);
+
+		// If room is now empty, schedule deletion
+		if (Object.keys(room.players).length === 0) {
+			console.log(`⌛ Room ${roomCode} empty after removal, deleting in 5 min`);
+			room.timeoutId = setTimeout(() => {
+				delete rooms[roomCode];
+				console.log(`🗑️ Room ${roomCode} deleted`);
+			}, 5 * 60 * 1000);
+		}
+	});
+
 	socket.on("leaveRoom", () => {
 		const roomCode = socket.roomCode;
 		if (!roomCode || !rooms[roomCode]) return;
@@ -1589,7 +1774,7 @@ function createBaseGameState() {
 		version: 1,
 		lastUpdate: Date.now(),
 		started: false,
-		phase: ["login", "game"],
+		phase: ["login", "room", "game"],
 		phaseCounter: 0,
 		currentPhase: "login",
 		roundCounter: 0,
