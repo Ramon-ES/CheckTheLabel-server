@@ -44,15 +44,15 @@ const actions = [
 		action: "microplastics:add:2",
 		used: false,
 	},
-	{
-		name: "clothingswap",
-		texture: "action-p-clothingswap.png",
-		title: "Clothing Swap",
-		statement:
-			"You joined a clothing swap instead of buying new clothes. Second-hand clothes = fewer microplastics! Swap one of your clothing cards with another player's.",
-		action: "swap:random",
-		used: false,
-	},
+	// {
+	// 	name: "clothingswap",
+	// 	texture: "action-p-clothingswap.png",
+	// 	title: "Clothing Swap",
+	// 	statement:
+	// 		"You joined a clothing swap instead of buying new clothes. Second-hand clothes = fewer microplastics! Swap one of your clothing cards with another player's.",
+	// 	action: "swap:random",
+	// 	used: false,
+	// },
 	{
 		name: "happybirthday",
 		texture: "action-p-happybirthday.png",
@@ -263,15 +263,15 @@ const actions = [
 		action: "microplastics:remove:1",
 		used: false,
 	},
-	{
-		name: "fastfashioneverywhere",
-		texture: "action-n-fastfashion.png",
-		title: "Fast Fashion Everywhere",
-		statement:
-			"Most stores push polyester and nylon. It's the norm in fast fashion - unfortunately, these synthetics shed more airborne microplastics when worn and washed. Add 1 microplastic to indoor air.",
-		action: "microplastics:add:1",
-		used: false,
-	},
+	// {
+	// 	name: "fastfashioneverywhere",
+	// 	texture: "action-n-fastfashion.png",
+	// 	title: "Fast Fashion Everywhere",
+	// 	statement:
+	// 		"Most stores push polyester and nylon. It's the norm in fast fashion - unfortunately, these synthetics shed more airborne microplastics when worn and washed. Add 1 microplastic to indoor air.",
+	// 	action: "microplastics:add:1",
+	// 	used: false,
+	// },
 	{
 		name: "catchuplaundryhabits",
 		texture: "action-p-laundryhabits.png",

@@ -36,8 +36,8 @@ const CPU_CONFIG = {
 	cpuPlayerCount: 1, // Number of CPU players to add when only 1 human player
 	cpuNames: ["ALEX", "MAYA", "SAM", "ZARA", "KYLE", "NINA", "JADE", "RYAN", "EMMA", "LIAM", "ANYA", "OMAR", "SAGE", "FINN", "LUNA", "DREW", "IRIS", "EZRA", "NOVA", "JUDE", "WREN", "SETH", "VERA", "KAI"],
 	decisionDelays: {
-		min: 1000, // Minimum delay for CPU decisions (ms)
-		max: 3000, // Maximum delay for CPU decisions (ms)
+		min: 500, // Minimum delay for CPU decisions (ms)
+		max: 1000, // Maximum delay for CPU decisions (ms)
 	},
 	turnStartDelays: {
 		// Delay before CPU starts their turn (in milliseconds)
@@ -1131,10 +1131,10 @@ io.on("connection", (socket) => {
 
 	socket.on("cards:forceReset", ({ roomCode }) => {
 		console.log(`Force resetting all cards for room ${roomCode}`);
-		
+
 		// First, notify client to reset all cards
 		io.to(roomCode).emit("cardsForceReset");
-		
+
 		// Then regenerate all cards on server
 		const room = rooms[roomCode];
 		if (room) {
@@ -1475,9 +1475,17 @@ io.on("connection", (socket) => {
 		emitOrQueue(roomCode, "fireEvent", { event, ...args });
 	});
 
-	socket.on("checkIfEnd", ({ roomCode }) => {
+	socket.on("checkIfEnd", ({ roomCode }, callback) => {
 		const room = rooms[roomCode];
-		if (!room || room.gameState.ended) return;
+		if (!room) {
+			if (callback) callback({ ended: false });
+			return;
+		}
+
+		if (room.gameState.ended) {
+			if (callback) callback({ ended: true, reason: room.gameState.ended, gameState: room.gameState });
+			return;
+		}
 
 		let reason;
 
@@ -1501,6 +1509,9 @@ io.on("connection", (socket) => {
 				reason,
 				gameState: room.gameState,
 			});
+			if (callback) callback({ ended: true, reason, gameState: room.gameState });
+		} else {
+			if (callback) callback({ ended: false });
 		}
 	});
 
