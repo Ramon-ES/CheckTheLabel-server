@@ -5,8 +5,12 @@ const { v4: uuidv4 } = require("uuid");
 const trivia = require("./trivia");
 const actions = require("./actions");
 const cardOptions = require("./cardOptions");
+const gameDataLogger = require("./gameDataLogger");
 const app = express();
 const server = http.createServer(app);
+
+// Middleware for JSON parsing
+app.use(express.json());
 
 const io = new Server(server, {
 	cors: {
@@ -257,15 +261,15 @@ function simulateCPUStep2Action(roomCode, cpuPlayerId, data) {
 
 function simulateCPUTrivia(roomCode, cpuPlayerId) {
 	if (!rooms[roomCode]) return;
-	
+
 	const room = rooms[roomCode];
 	const cpuPlayer = room.players[cpuPlayerId];
 	if (!cpuPlayer || !cpuPlayer.isCPU) return;
-	
+
 	setTimeout(() => {
 		// CPU answers trivia with 70% accuracy
 		const isCorrect = Math.random() > 0.3;
-		
+
 		// Simulate trivia answer processing (similar to actual trivia logic)
 		if (isCorrect) {
 			cpuPlayer.points += 5;
@@ -274,7 +278,18 @@ function simulateCPUTrivia(roomCode, cpuPlayerId) {
 			room.gameState.microplastics = Math.min(room.gameState.microplasticsMax, room.gameState.microplastics + 1);
 			console.log(`🤖 CPU ${cpuPlayer.username} answered trivia incorrectly (+1 microplastic)`);
 		}
-		
+
+		// 📊 Log CPU trivia answer to analytics
+		if (room.gameSession) {
+			gameDataLogger.logTrivia(
+				room.gameSession,
+				cpuPlayerId,
+				room.gameState.trivia,
+				isCorrect,
+				room.gameState.roundCounter
+			);
+		}
+
 		// Broadcast the update
 		emitOrQueue(roomCode, "game:update", {
 			gameState: room.gameState,
@@ -282,9 +297,9 @@ function simulateCPUTrivia(roomCode, cpuPlayerId) {
 		io.to(roomCode).emit("players:update", {
 			players: room.players,
 		});
-		
+
 		// Let frontend handle step advancement naturally after trivia completion
-		
+
 	}, getRandomDelay());
 }
 
@@ -605,6 +620,12 @@ io.on("connection", (socket) => {
 
 		console.log(`🤖 Started single player game in room ${roomCode} with ${sortedPlayerIds.length} players`);
 
+		// 📊 Initialize analytics tracking for this game
+		if (!rooms[roomCode].gameSession) {
+			rooms[roomCode].gameSession = gameDataLogger.initGameSession(roomCode, rooms[roomCode].players);
+			console.log(`📊 Analytics tracking started for game ${rooms[roomCode].gameSession.gameId}`);
+		}
+
 		socket.emit("roomCreated", { roomCode });
 		socket.emit("joinedRoom", {
 			id: socket.id,
@@ -864,11 +885,17 @@ io.on("connection", (socket) => {
 					if (!playerA.isCPU && playerB.isCPU) return -1; // Human comes before CPU
 					return 0; // Same type, maintain current order
 				});
-				
+
 				room.gameState.currentTurnPlayerId = sortedPlayerIds[0];
 				room.gameState.currentTurnIndex = 0;
 				console.log(`🎯 Game started! Turn order:`, sortedPlayerIds.map(id => room.players[id].username));
 				console.log(`🎯 First turn player: ${room.players[sortedPlayerIds[0]].username}`);
+
+				// 📊 Initialize analytics tracking for this game
+				if (!room.gameSession) {
+					room.gameSession = gameDataLogger.initGameSession(roomCode, room.players);
+					console.log(`📊 Analytics tracking started for game ${room.gameSession.gameId}`);
+				}
 			}
 		}
 		
@@ -976,7 +1003,7 @@ io.on("connection", (socket) => {
 		// First check for prioritized questions
 		let nextTrivia;
 		const prioritizedIndex = room.trivia.findIndex(q => q.prioritize === true || q.priotize === true);
-		
+
 		if (prioritizedIndex !== -1) {
 			// Use prioritized question
 			nextTrivia = room.trivia.splice(prioritizedIndex, 1)[0];
@@ -1005,6 +1032,21 @@ io.on("connection", (socket) => {
 		triggerCPUDecisions(roomCode, 'trivia');
 	});
 
+	// New socket handler for logging trivia answers
+	socket.on("trivia:answer", ({ roomCode, playerId, isCorrect }) => {
+		const room = rooms[roomCode];
+		if (!room || !room.gameSession) return;
+
+		// 📊 Log trivia answer to analytics
+		gameDataLogger.logTrivia(
+			room.gameSession,
+			playerId,
+			room.gameState.trivia,
+			isCorrect,
+			room.gameState.roundCounter
+		);
+	});
+
 	socket.on("action:get", ({ roomCode }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
@@ -1023,6 +1065,16 @@ io.on("connection", (socket) => {
 		room.gameState.action.action = nextAction.action;
 		room.gameState.action.name = nextAction.name;
 		room.gameState.action.texture = nextAction.texture;
+
+		// 📊 Log action to analytics for current turn player
+		if (room.gameSession && room.gameState.currentTurnPlayerId) {
+			gameDataLogger.logAction(
+				room.gameSession,
+				room.gameState.currentTurnPlayerId,
+				nextAction,
+				room.gameState.roundCounter
+			);
+		}
 
 		// ✅ Increment version for state tracking
 		incrementGameStateVersion(room);
@@ -1048,15 +1100,15 @@ io.on("connection", (socket) => {
 	socket.on("wardrobe:add", ({ roomCode, playerId, data }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
-		
+
 		const player = room.players[playerId];
 		const targetType = data.type.toLowerCase();
-		
+
 		// Check if the target wardrobe category has capacity
 		const wardrobeCategory = player.wardrobe[targetType];
 		const currentCount = wardrobeCategory ? wardrobeCategory.items.length : 0;
 		const maxCapacity = wardrobeCategory ? wardrobeCategory.max : 0;
-		
+
 		// If the target category is full (and not already excess), redirect to excess
 		let finalType = targetType;
 		if (targetType !== 'excess' && currentCount >= maxCapacity) {
@@ -1064,15 +1116,31 @@ io.on("connection", (socket) => {
 			finalType = 'excess';
 			data.type = 'excess'; // Update the item's type for consistency
 		}
-		
+
 		// Add item to the final determined category
 		player.wardrobe[finalType].items.push(data);
-		
+
 		console.log(`Added item to ${finalType}: ${data.title} ${data.item} (${player.wardrobe[finalType].items.length}/${player.wardrobe[finalType].max})`);
-		
+
 		io.to(roomCode).emit("playersUpdated", {
 			players: room.players,
 		});
+	});
+
+	// New socket handler for logging card purchases
+	socket.on("cards:purchased", ({ roomCode, playerId, cards }) => {
+		const room = rooms[roomCode];
+		if (!room || !room.gameSession) return;
+
+		// 📊 Log card purchases to analytics
+		if (cards && cards.length > 0) {
+			gameDataLogger.logCardPurchases(
+				room.gameSession,
+				playerId,
+				cards,
+				room.gameState.roundCounter
+			);
+		}
 	});
 
 	socket.on("cards:generate", ({ roomCode, forceReset = false }) => {
@@ -1505,6 +1573,13 @@ io.on("connection", (socket) => {
 
 		if (reason) {
 			room.gameState.ended = reason;
+
+			// 📊 End game session and save analytics
+			if (room.gameSession) {
+				gameDataLogger.endGameSession(room.gameSession, room, reason);
+				console.log(`📊 Game ${room.gameSession.gameId} analytics saved`);
+			}
+
 			io.to(roomCode).emit("game:ended", {
 				reason,
 				gameState: room.gameState,
@@ -1647,12 +1722,20 @@ io.on("connection", (socket) => {
 			addCPUPlayers(roomCode);
 		}
 
-		// If all players are inactive, start delete timeout
-		const allInactive = Object.values(room.players).every((p) => !p.active);
-		if (allInactive) {
+		// If all HUMAN players are inactive (CPU doesn't count), start delete timeout and save data
+		const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+		const allHumansInactive = humanPlayers.length > 0 && humanPlayers.every((p) => !p.active);
+		if (allHumansInactive) {
 			console.log(
-				`⌛ All players left room ${roomCode}, deleting in 5 min`
+				`⌛ All human players left room ${roomCode}, deleting in 5 min`
 			);
+
+			// 📊 Save abandoned game data if game was started but not ended
+			if (room.gameSession && room.gameState.started && !room.gameState.ended) {
+				console.log(`📊 Saving abandoned game data for room ${roomCode}`);
+				gameDataLogger.endGameSession(room.gameSession, room, "abandoned");
+			}
+
 			room.timeoutId = setTimeout(() => {
 				delete rooms[roomCode];
 				console.log(`🗑️ Room ${roomCode} deleted after timeout`);
@@ -1721,6 +1804,13 @@ io.on("connection", (socket) => {
 		// If room is now empty, schedule deletion
 		if (Object.keys(room.players).length === 0) {
 			console.log(`⌛ Room ${roomCode} empty after removal, deleting in 5 min`);
+
+			// 📊 Save abandoned game data if game was started but not ended
+			if (room.gameSession && room.gameState.started && !room.gameState.ended) {
+				console.log(`📊 Saving abandoned game data for room ${roomCode}`);
+				gameDataLogger.endGameSession(room.gameSession, room, "abandoned");
+			}
+
 			room.timeoutId = setTimeout(() => {
 				delete rooms[roomCode];
 				console.log(`🗑️ Room ${roomCode} deleted`);
@@ -1752,9 +1842,17 @@ io.on("connection", (socket) => {
 		delete socket.roomCode;
 		delete socket.playerId;
 
-		// If room is now empty, schedule deletion
-		if (Object.keys(room.players).length === 0) {
-			console.log(`⌛ Room ${roomCode} empty, deleting in 5 min`);
+		// If all HUMAN players have left (CPU doesn't count), schedule deletion and save data
+		const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+		if (humanPlayers.length === 0) {
+			console.log(`⌛ All human players left room ${roomCode}, deleting in 5 min`);
+
+			// 📊 Save abandoned game data if game was started but not ended
+			if (room.gameSession && room.gameState.started && !room.gameState.ended) {
+				console.log(`📊 Saving abandoned game data for room ${roomCode}`);
+				gameDataLogger.endGameSession(room.gameSession, room, "abandoned");
+			}
+
 			room.timeoutId = setTimeout(() => {
 				delete rooms[roomCode];
 				console.log(`🗑️ Room ${roomCode} deleted`);
@@ -1836,6 +1934,7 @@ function createBaseRoom() {
 		timeoutId: null,
 		queuedEvents: [], // Queue events for inactive single players
 		lastGameEvent: null, // Track latest game event for CPU games
+		gameSession: null, // Track analytics for this game
 	};
 }
 
@@ -2025,6 +2124,63 @@ app.get("/", (req, res) => {
 
 app.get("/ping", (req, res) => {
 	res.status(200).json({ message: "Server is running!" });
+});
+
+// Analytics middleware - verify token
+function verifyAnalyticsToken(req, res, next) {
+	const token = req.headers['authorization'] || req.query.token;
+
+	if (!token) {
+		return res.status(401).json({ error: 'No token provided. Use Authorization header or ?token=YOUR_TOKEN' });
+	}
+
+	// Remove 'Bearer ' prefix if present
+	const cleanToken = token.replace('Bearer ', '');
+
+	if (!gameDataLogger.verifyToken(cleanToken)) {
+		return res.status(403).json({ error: 'Invalid token' });
+	}
+
+	next();
+}
+
+// Analytics endpoint - get all game data
+app.get("/analytics", verifyAnalyticsToken, (req, res) => {
+	try {
+		const analytics = gameDataLogger.getAllAnalytics();
+		res.status(200).json(analytics);
+	} catch (error) {
+		console.error('Error fetching analytics:', error);
+		res.status(500).json({ error: 'Failed to fetch analytics' });
+	}
+});
+
+// Analytics summary endpoint - get summary statistics
+app.get("/analytics/summary", verifyAnalyticsToken, (req, res) => {
+	try {
+		const summary = gameDataLogger.getAnalyticsSummary();
+		res.status(200).json(summary);
+	} catch (error) {
+		console.error('Error fetching analytics summary:', error);
+		res.status(500).json({ error: 'Failed to fetch analytics summary' });
+	}
+});
+
+// Analytics endpoint - get specific game by gameId
+app.get("/analytics/game/:gameId", verifyAnalyticsToken, (req, res) => {
+	try {
+		const analytics = gameDataLogger.getAllAnalytics();
+		const game = analytics.games.find(g => g.gameId === req.params.gameId);
+
+		if (!game) {
+			return res.status(404).json({ error: 'Game not found' });
+		}
+
+		res.status(200).json(game);
+	} catch (error) {
+		console.error('Error fetching game:', error);
+		res.status(500).json({ error: 'Failed to fetch game' });
+	}
 });
 
 const PORT = 3003;

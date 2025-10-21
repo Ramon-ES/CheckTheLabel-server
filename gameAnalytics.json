@@ -1,0 +1,792 @@
+{
+  "games": [
+    {
+      "gameId": "C8ODQU_1761038896807",
+      "roomCode": "C8ODQU",
+      "startTime": "2025-10-21T09:28:16.807Z",
+      "endTime": "2025-10-21T09:28:41.639Z",
+      "duration": 25,
+      "endReason": "abandoned",
+      "endedBy": null,
+      "totalRounds": 1,
+      "finalMicroplastics": 0,
+      "playerCount": {
+        "human": 1,
+        "cpu": 1,
+        "total": 2
+      },
+      "players": {
+        "591e452f-42f2-4221-b0fa-3d4e9e5dec60": {
+          "playerId": "591e452f-42f2-4221-b0fa-3d4e9e5dec60",
+          "username": "J2KO",
+          "isCPU": false,
+          "finalMoney": 0,
+          "finalPoints": 0,
+          "finalWardrobe": {},
+          "totalClothingItems": 0,
+          "triviaAnswered": {
+            "correct": 0,
+            "incorrect": 0,
+            "total": 0,
+            "questions": []
+          },
+          "actionsReceived": [],
+          "cardsPerRound": {},
+          "roundData": {}
+        },
+        "cpu_35030600-4230-4c05-bb91-fb219a9f1cff": {
+          "playerId": "cpu_35030600-4230-4c05-bb91-fb219a9f1cff",
+          "username": "SAM",
+          "isCPU": true,
+          "finalMoney": 2,
+          "finalPoints": 0,
+          "finalWardrobe": {
+            "jackets": {
+              "count": 0,
+              "max": 2,
+              "items": []
+            },
+            "sweaters": {
+              "count": 0,
+              "max": 3,
+              "items": []
+            },
+            "pants": {
+              "count": 0,
+              "max": 4,
+              "items": []
+            },
+            "shirts": {
+              "count": 0,
+              "max": 6,
+              "items": []
+            },
+            "excess": {
+              "count": 0,
+              "max": 200,
+              "items": []
+            }
+          },
+          "totalClothingItems": 0,
+          "triviaAnswered": {
+            "correct": 0,
+            "incorrect": 0,
+            "total": 0,
+            "questions": []
+          },
+          "actionsReceived": [],
+          "cardsPerRound": {},
+          "roundData": {
+            "0": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "1": {
+              "step1": {
+                "money": 2,
+                "action": "trivia"
+              },
+              "step2": {},
+              "step3": {}
+            },
+            "2": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "3": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "4": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "5": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "6": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "7": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "8": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "9": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "10": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "11": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "12": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "13": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "14": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "15": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "16": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "17": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "18": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "19": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            }
+          }
+        }
+      },
+      "winner": {
+        "playerId": "591e452f-42f2-4221-b0fa-3d4e9e5dec60",
+        "username": "J2KO",
+        "points": 0
+      }
+    },
+    {
+      "gameId": "7NSL38_1761039396979",
+      "roomCode": "7NSL38",
+      "startTime": "2025-10-21T09:36:36.979Z",
+      "endTime": "2025-10-21T09:37:47.084Z",
+      "duration": 70,
+      "endReason": "abandoned",
+      "endedBy": null,
+      "totalRounds": 3,
+      "finalMicroplastics": 0,
+      "playerCount": {
+        "human": 1,
+        "cpu": 1,
+        "total": 2
+      },
+      "players": {
+        "e3650f8d-47df-40b0-b91c-a83cb33a7bc0": {
+          "playerId": "e3650f8d-47df-40b0-b91c-a83cb33a7bc0",
+          "username": "AKYK",
+          "isCPU": false,
+          "finalMoney": 0,
+          "finalPoints": 0,
+          "finalWardrobe": {},
+          "totalClothingItems": 0,
+          "triviaAnswered": {
+            "correct": 1,
+            "incorrect": 0,
+            "total": 1,
+            "questions": [
+              {
+                "round": 0,
+                "title": "Sustainable Fashion in Europe",
+                "statement": "Only a small minority of people in Europe buy sustainable fashion, which is made with less harm to people and the environment.",
+                "correctAnswer": false,
+                "isCorrect": true,
+                "timestamp": "2025-10-21T09:37:00.864Z"
+              }
+            ]
+          },
+          "actionsReceived": [],
+          "cardsPerRound": {
+            "2": [
+              {
+                "title": "Synthetic",
+                "material": "Nylon",
+                "condition": "secondHand",
+                "item": "Sweater",
+                "points": 4,
+                "price": 6
+              }
+            ]
+          },
+          "roundData": {}
+        },
+        "cpu_3a8918c3-7c19-400f-8140-2617d957027e": {
+          "playerId": "cpu_3a8918c3-7c19-400f-8140-2617d957027e",
+          "username": "SAM",
+          "isCPU": true,
+          "finalMoney": 6,
+          "finalPoints": 0,
+          "finalWardrobe": {
+            "jackets": {
+              "count": 0,
+              "max": 2,
+              "items": []
+            },
+            "sweaters": {
+              "count": 0,
+              "max": 3,
+              "items": []
+            },
+            "pants": {
+              "count": 0,
+              "max": 4,
+              "items": []
+            },
+            "shirts": {
+              "count": 0,
+              "max": 6,
+              "items": []
+            },
+            "excess": {
+              "count": 0,
+              "max": 200,
+              "items": []
+            }
+          },
+          "totalClothingItems": 0,
+          "triviaAnswered": {
+            "correct": 0,
+            "incorrect": 0,
+            "total": 0,
+            "questions": []
+          },
+          "actionsReceived": [],
+          "cardsPerRound": {},
+          "roundData": {
+            "0": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "1": {
+              "step1": {
+                "money": 1,
+                "action": "vacuum"
+              },
+              "step2": {},
+              "step3": {}
+            },
+            "2": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "3": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "4": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "5": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "6": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "7": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "8": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "9": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "10": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "11": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "12": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "13": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "14": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "15": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "16": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "17": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "18": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "19": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            }
+          }
+        }
+      },
+      "winner": null
+    },
+    {
+      "gameId": "TY4YUE_1761039737231",
+      "roomCode": "TY4YUE",
+      "startTime": "2025-10-21T09:42:17.232Z",
+      "endTime": "2025-10-21T09:42:20.204Z",
+      "duration": 3,
+      "endReason": "abandoned",
+      "endedBy": null,
+      "totalRounds": 0,
+      "finalMicroplastics": 0,
+      "playerCount": {
+        "human": 1,
+        "cpu": 1,
+        "total": 2
+      },
+      "players": {
+        "13de976d-98e9-4dbc-9710-c936c9e5cd38": {
+          "playerId": "13de976d-98e9-4dbc-9710-c936c9e5cd38",
+          "username": "12U8",
+          "isCPU": false,
+          "finalMoney": 0,
+          "finalPoints": 0,
+          "finalWardrobe": {},
+          "totalClothingItems": 0,
+          "triviaAnswered": {
+            "correct": 0,
+            "incorrect": 0,
+            "total": 0,
+            "questions": []
+          },
+          "actionsReceived": [],
+          "cardsPerRound": {},
+          "roundData": {}
+        },
+        "cpu_701d9e8d-ff3f-48ec-9245-9c0bbbb0e789": {
+          "playerId": "cpu_701d9e8d-ff3f-48ec-9245-9c0bbbb0e789",
+          "username": "NINA",
+          "isCPU": true,
+          "finalMoney": 0,
+          "finalPoints": 0,
+          "finalWardrobe": {
+            "jackets": {
+              "count": 0,
+              "max": 2,
+              "items": []
+            },
+            "sweaters": {
+              "count": 0,
+              "max": 3,
+              "items": []
+            },
+            "pants": {
+              "count": 0,
+              "max": 4,
+              "items": []
+            },
+            "shirts": {
+              "count": 0,
+              "max": 6,
+              "items": []
+            },
+            "excess": {
+              "count": 0,
+              "max": 200,
+              "items": []
+            }
+          },
+          "totalClothingItems": 0,
+          "triviaAnswered": {
+            "correct": 0,
+            "incorrect": 0,
+            "total": 0,
+            "questions": []
+          },
+          "actionsReceived": [],
+          "cardsPerRound": {},
+          "roundData": {
+            "0": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "1": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "2": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "3": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "4": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "5": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "6": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "7": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "8": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "9": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "10": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "11": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "12": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "13": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "14": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "15": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "16": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "17": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "18": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "19": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            }
+          }
+        }
+      },
+      "winner": null
+    },
+    {
+      "gameId": "KLIOVE_1761039746371",
+      "roomCode": "KLIOVE",
+      "startTime": "2025-10-21T09:42:26.371Z",
+      "endTime": "2025-10-21T09:43:20.363Z",
+      "duration": 54,
+      "endReason": "abandoned",
+      "endedBy": null,
+      "totalRounds": 2,
+      "finalMicroplastics": 2,
+      "playerCount": {
+        "human": 1,
+        "cpu": 1,
+        "total": 2
+      },
+      "players": {
+        "a4cf6166-cb20-4e1f-9d6f-7c34e7287a02": {
+          "playerId": "a4cf6166-cb20-4e1f-9d6f-7c34e7287a02",
+          "username": "12U8",
+          "isCPU": false,
+          "finalMoney": 0,
+          "finalPoints": 0,
+          "finalWardrobe": {},
+          "totalClothingItems": 0,
+          "triviaAnswered": {
+            "correct": 0,
+            "incorrect": 0,
+            "total": 0,
+            "questions": []
+          },
+          "actionsReceived": [],
+          "cardsPerRound": {},
+          "roundData": {}
+        },
+        "cpu_18023483-fc85-4683-9d5e-c98796a256a1": {
+          "playerId": "cpu_18023483-fc85-4683-9d5e-c98796a256a1",
+          "username": "WREN",
+          "isCPU": true,
+          "finalMoney": 6,
+          "finalPoints": 5,
+          "finalWardrobe": {
+            "jackets": {
+              "count": 0,
+              "max": 2,
+              "items": []
+            },
+            "sweaters": {
+              "count": 0,
+              "max": 3,
+              "items": []
+            },
+            "pants": {
+              "count": 1,
+              "max": 4,
+              "items": [
+                {
+                  "title": "Synthetic",
+                  "material": "Polyester",
+                  "condition": "new",
+                  "points": 3
+                }
+              ]
+            },
+            "shirts": {
+              "count": 0,
+              "max": 6,
+              "items": []
+            },
+            "excess": {
+              "count": 0,
+              "max": 200,
+              "items": []
+            }
+          },
+          "totalClothingItems": 0,
+          "triviaAnswered": {
+            "correct": 0,
+            "incorrect": 0,
+            "total": 0,
+            "questions": []
+          },
+          "actionsReceived": [
+            {
+              "round": 1,
+              "name": "frictionalert",
+              "title": "Friction Alert!",
+              "statement": "Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics.",
+              "action": "microplastics:add:2",
+              "timestamp": "2025-10-21T09:42:53.464Z"
+            }
+          ],
+          "cardsPerRound": {
+            "1": [
+              {
+                "title": "Synthetic",
+                "material": "Elastane",
+                "condition": "secondHand",
+                "item": "Shirt",
+                "points": 5,
+                "price": 2
+              }
+            ]
+          },
+          "roundData": {
+            "0": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "1": {
+              "step1": {
+                "money": 3,
+                "action": "action"
+              },
+              "step2": {},
+              "step3": {}
+            },
+            "2": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "3": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "4": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "5": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "6": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "7": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "8": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "9": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "10": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "11": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "12": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "13": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "14": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "15": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "16": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "17": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "18": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            },
+            "19": {
+              "step1": {},
+              "step2": {},
+              "step3": {}
+            }
+          }
+        }
+      },
+      "winner": null
+    }
+  ]
+}

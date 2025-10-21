@@ -4,7 +4,7 @@ const actions = [
 		texture: "action-n-frictionalert.png",
 		title: "Friction Alert!",
 		statement:
-		"Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics to the laundry room.",
+		"Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
@@ -13,7 +13,7 @@ const actions = [
 		texture: "action-n-badassumption.png",
 		title: "Bad Assumption",
 		statement:
-		"You assumed a T-shirt was made from cotton and you did not check the label. Surprise! It is made from polyester. Add two microplastics to the laundry room.",
+		"You assumed a T-shirt was made from cotton and you did not check the label. Surprise! It is made from polyester. Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
@@ -31,7 +31,7 @@ const actions = [
 		texture: "action-n-tumbledryer.png",
 		title: "Tumble Dryer",
 		statement:
-			"You dried your laundry with the tumble dryer this week. That releases many microplastic fibres in your indoor air! Add two microplastics to the laundry room.",
+			"You dried your laundry with the tumble dryer this week. That releases many microplastic fibres in your indoor air! Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
@@ -40,7 +40,7 @@ const actions = [
 		texture: "action-n-syntheticheat.png",
 		title: "Synthetic Heat",
 		statement:
-		"You washed synthetic clothes at a very high temperature. More heat = more microplastics! Add two microplastics to the laundry room.",
+		"You washed synthetic clothes at a very high temperature. More heat = more microplastics! Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
@@ -94,7 +94,7 @@ const actions = [
 		texture: "action-n-impulseshopping.png",
 		title: "Impulse Shopping",
 		statement:
-			"You bought one cheap synthetic T-shirt on a whim. That will release many microplastic fibres that end up in your environment or even in your body! Add two microplastics to the laundry room.",
+			"You bought one cheap synthetic T-shirt on a whim. That will release many microplastic fibres that end up in your environment or even in your body! Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
@@ -103,7 +103,7 @@ const actions = [
 		texture: "action-p-homeventilation.png",
 		title: "Home Ventilation",
 		statement:
-			"You ventilated your home today. Fresh air = fewer microplastics. Remove 2 microplastics from the laundry room.",
+			"You ventilated your home today. Fresh air = fewer microplastics. Remove 2 microplastics.",
 		action: "microplastics:remove:2",
 		used: false,
 	},
@@ -112,7 +112,7 @@ const actions = [
 		texture: "action-p-thoroughvacuum.png",
 		title: "Thorough Vacuum",
 		statement:
-			"You vacuumed thoroughly today. That picked up loads of microplastic dust! Remove 2 microplastics from the laundry room.",
+			"You vacuumed thoroughly today. That picked up loads of microplastic dust! Remove 2 microplastics.",
 		action: "microplastics:remove:2",
 		used: false,
 	},
@@ -122,7 +122,7 @@ const actions = [
 	// 	texture: "action-p-fulllaundryload.png",
 	// 	title: "Full Laundry Load",
 	// 	statement:
-	// 		"You chose to wash a full load of laundry. Less free space = less friction. Keep this card until the next laundry cycle, then add only half the usual microplastics to the laundry room.",
+	// 		"You chose to wash a full load of laundry. Less free space = less friction. Keep this card until the next laundry cycle, then add only half the usual microplastics.",
 	// 	action: "",
 	// 	used: false,
 	// },
@@ -131,7 +131,7 @@ const actions = [
 	// 	texture: "action-p-coldwaterwash.png",
 	// 	title: "Cold Water Wash",
 	// 	statement:
-	// 		"You washed your laundry with cold water to reduce fibre shedding. Cold temperature = fewer microplastics. That was easy! Keep this card until the next laundry cycle, then add only half the usual microplastics to the laundry room.",
+	// 		"You washed your laundry with cold water to reduce fibre shedding. Cold temperature = fewer microplastics. That was easy! Keep this card until the next laundry cycle, then add only half the usual microplastics.",
 	// 	action: "",
 	// 	used: false,
 	// },
@@ -140,7 +140,7 @@ const actions = [
 	// 	texture: "action-p-microfiberbag.png",
 	// 	title: "Microfiber Bag",
 	// 	statement:
-	// 		"You used a microfiber-catching laundry bag. That traps some of the plastic! Keep this card until the next laundry cycle, then add only half the usual microplastics to the laundry room.",
+	// 		"You used a microfiber-catching laundry bag. That traps some of the plastic! Keep this card until the next laundry cycle, then add only half the usual microplastics.",
 	// 	action: "",
 	// 	used: false,
 	// },
@@ -149,7 +149,7 @@ const actions = [
 	// 	texture: "action-p-airdrying.png",
 	// 	title: "Air-drying",
 	// 	statement:
-	// 		"You air-dried your laundry instead of using a tumble dryer. You prevented a lot of microplastics from getting into the air. Smart move! Keep this card until the next laundry cycle, then add only half the usual microplastics to the laundry room.",
+	// 		"You air-dried your laundry instead of using a tumble dryer. You prevented a lot of microplastics from getting into the air. Smart move! Keep this card until the next laundry cycle, then add only half the usual microplastics.",
 	// 	action: "",
 	// 	used: false,
 	// },
