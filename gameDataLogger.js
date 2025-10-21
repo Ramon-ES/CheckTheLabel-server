@@ -304,6 +304,40 @@ class GameDataLogger {
 	verifyToken(token) {
 		return token === ANALYTICS_TOKEN;
 	}
+
+	/**
+	 * Reset analytics data - creates backup before clearing
+	 * @returns {object} - Status and backup info
+	 */
+	resetAnalytics() {
+		try {
+			const currentData = this.readAnalytics();
+			const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+			const backupFile = path.join(__dirname, `gameAnalytics.backup.${timestamp}.json`);
+
+			// Create backup of current data
+			fs.writeFileSync(backupFile, JSON.stringify(currentData, null, 2), 'utf8');
+			console.log(`📦 Analytics backup created: ${backupFile}`);
+
+			// Reset analytics file
+			const emptyAnalytics = { games: [] };
+			this.writeAnalytics(emptyAnalytics);
+			console.log('🔄 Analytics data reset successfully');
+
+			return {
+				success: true,
+				gamesCleared: currentData.games?.length || 0,
+				backupFile: backupFile,
+				timestamp: timestamp
+			};
+		} catch (error) {
+			console.error('❌ Error resetting analytics:', error);
+			return {
+				success: false,
+				error: error.message
+			};
+		}
+	}
 }
 
 module.exports = new GameDataLogger();

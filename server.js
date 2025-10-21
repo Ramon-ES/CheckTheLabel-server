@@ -2269,6 +2269,30 @@ app.get("/analytics/game/:gameId", verifyAnalyticsToken, (req, res) => {
 	}
 });
 
+// Analytics endpoint - reset analytics data (creates backup)
+app.post("/analytics/reset", verifyAnalyticsToken, (req, res) => {
+	try {
+		const result = gameDataLogger.resetAnalytics();
+
+		if (result.success) {
+			res.status(200).json({
+				message: 'Analytics reset successfully',
+				gamesCleared: result.gamesCleared,
+				backupFile: result.backupFile,
+				timestamp: result.timestamp
+			});
+		} else {
+			res.status(500).json({
+				error: 'Failed to reset analytics',
+				details: result.error
+			});
+		}
+	} catch (error) {
+		console.error('Error resetting analytics:', error);
+		res.status(500).json({ error: 'Failed to reset analytics' });
+	}
+});
+
 const PORT = 3003;
 server.listen(PORT, () => {
 	console.log(`🚀 Server listening on port ${PORT}`);
