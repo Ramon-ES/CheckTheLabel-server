@@ -626,6 +626,9 @@ io.on("connection", (socket) => {
 			console.log(`📊 Analytics tracking started for game ${rooms[roomCode].gameSession.gameId}`);
 		}
 
+		// ⏱️ Start game timer for 20-minute event tracking
+		startGameTimer(roomCode);
+
 		socket.emit("roomCreated", { roomCode });
 		socket.emit("joinedRoom", {
 			id: socket.id,
@@ -896,6 +899,9 @@ io.on("connection", (socket) => {
 					room.gameSession = gameDataLogger.initGameSession(roomCode, room.players);
 					console.log(`📊 Analytics tracking started for game ${room.gameSession.gameId}`);
 				}
+
+				// ⏱️ Start game timer for 20-minute event tracking
+				startGameTimer(roomCode);
 			}
 		}
 		
@@ -982,6 +988,11 @@ io.on("connection", (socket) => {
 	socket.on("players:update", ({ roomCode, path, value }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
+
+		// ✅ Ensure money never goes negative
+		if (path.endsWith('.money') && value < 0) {
+			value = 0;
+		}
 
 		setDeepValue(room.players, path, value);
 
@@ -1092,6 +1103,10 @@ io.on("connection", (socket) => {
 		if (!room) return;
 
 		room.players[playerId].money += amount;
+		// ✅ Ensure money never goes negative
+		if (room.players[playerId].money < 0) {
+			room.players[playerId].money = 0;
+		}
 		io.to(roomCode).emit("playersUpdated", {
 			players: room.players,
 		});
@@ -1580,6 +1595,9 @@ io.on("connection", (socket) => {
 				console.log(`📊 Game ${room.gameSession.gameId} analytics saved`);
 			}
 
+			// ⏱️ Stop game timer when game ends
+			stopGameTimer(roomCode);
+
 			io.to(roomCode).emit("game:ended", {
 				reason,
 				gameState: room.gameState,
@@ -1736,6 +1754,9 @@ io.on("connection", (socket) => {
 				gameDataLogger.endGameSession(room.gameSession, room, "abandoned");
 			}
 
+			// ⏱️ Stop game timer when all players leave
+			stopGameTimer(roomCode);
+
 			room.timeoutId = setTimeout(() => {
 				delete rooms[roomCode];
 				console.log(`🗑️ Room ${roomCode} deleted after timeout`);
@@ -1811,6 +1832,9 @@ io.on("connection", (socket) => {
 				gameDataLogger.endGameSession(room.gameSession, room, "abandoned");
 			}
 
+			// ⏱️ Stop game timer when room becomes empty
+			stopGameTimer(roomCode);
+
 			room.timeoutId = setTimeout(() => {
 				delete rooms[roomCode];
 				console.log(`🗑️ Room ${roomCode} deleted`);
@@ -1852,6 +1876,9 @@ io.on("connection", (socket) => {
 				console.log(`📊 Saving abandoned game data for room ${roomCode}`);
 				gameDataLogger.endGameSession(room.gameSession, room, "abandoned");
 			}
+
+			// ⏱️ Stop game timer when all players leave
+			stopGameTimer(roomCode);
 
 			room.timeoutId = setTimeout(() => {
 				delete rooms[roomCode];
@@ -1935,6 +1962,9 @@ function createBaseRoom() {
 		queuedEvents: [], // Queue events for inactive single players
 		lastGameEvent: null, // Track latest game event for CPU games
 		gameSession: null, // Track analytics for this game
+		gameTimerInterval: null, // Interval to track game time
+		gameStartTime: null, // Timestamp when game started
+		twentyMinuteEventFired: false, // Track if 20-minute event was already fired
 	};
 }
 
@@ -1955,6 +1985,62 @@ function incrementGameStateVersion(room) {
 	if (room && room.gameState) {
 		room.gameState.version++;
 		room.gameState.lastUpdate = Date.now();
+	}
+}
+
+// ⏱️ Game Timer Functions
+function startGameTimer(roomCode) {
+	if (!rooms[roomCode]) return;
+
+	const room = rooms[roomCode];
+
+	// Don't start timer if already running
+	if (room.gameTimerInterval || room.gameStartTime) {
+		console.log(`⏱️ Game timer already running for room ${roomCode}`);
+		return;
+	}
+
+	// Record game start time
+	room.gameStartTime = Date.now();
+	room.twentyMinuteEventFired = false;
+
+	console.log(`⏱️ Started game timer for room ${roomCode}`);
+
+	// Check every 30 seconds if 20 minutes have passed
+	room.gameTimerInterval = setInterval(() => {
+		if (!rooms[roomCode]) {
+			// Room was deleted, clean up interval
+			clearInterval(room.gameTimerInterval);
+			return;
+		}
+
+		const elapsedTime = Date.now() - room.gameStartTime;
+		const twentyMinutesMs = 20 * 60 * 1000; // 20 minutes in milliseconds
+
+		// Check if 20 minutes have passed and event hasn't been fired yet
+		if (elapsedTime >= twentyMinutesMs && !room.twentyMinuteEventFired) {
+			room.twentyMinuteEventFired = true;
+			console.log(`⏰ Game in room ${roomCode} has reached 20 minutes!`);
+
+			// Emit event to all players in the room
+			io.to(roomCode).emit("game:twentyMinutes", {
+				roomCode,
+				elapsedTime,
+				message: "The game has been running for 20 minutes"
+			});
+		}
+	}, 30000); // Check every 30 seconds
+}
+
+function stopGameTimer(roomCode) {
+	if (!rooms[roomCode]) return;
+
+	const room = rooms[roomCode];
+
+	if (room.gameTimerInterval) {
+		clearInterval(room.gameTimerInterval);
+		room.gameTimerInterval = null;
+		console.log(`⏱️ Stopped game timer for room ${roomCode}`);
 	}
 }
 
