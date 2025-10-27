@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/ramon/Documents/CheckHetLabel/project_sync/Scripts/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

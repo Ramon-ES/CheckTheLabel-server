@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ANALYTICS_FILE = path.join(__dirname, 'gameAnalytics.json');
-const ANALYTICS_TOKEN = process.env.ANALYTICS_TOKEN || 'checkhetlabel_analytics_2024'; // Change this in production!
+const ANALYTICS_TOKEN = process.env.ANALYTICS_TOKEN;
 
 class GameDataLogger {
 	constructor() {
