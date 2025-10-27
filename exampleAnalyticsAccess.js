@@ -3,7 +3,7 @@
  * Run with: node exampleAnalyticsAccess.js
  */
 
-const ANALYTICS_TOKEN = 'checkhetlabel_analytics_2024'; // Change to your token
+const ANALYTICS_TOKEN = 'checkhetlabel_analytics_2025'; // Change to your token
 const SERVER_URL = 'http://localhost:3003';
 
 // Helper function to make authenticated requests
