@@ -104,6 +104,7 @@ class Player {
 		};
 		this.clothingItems = 0;
 		this.tabActive = true; // Track if player's tab is active
+		this.storedCards = []; // Cards stored for later use (e.g., washing day skip cards)
 	}
 
 	generateCPUName() {
@@ -1142,6 +1143,59 @@ io.on("connection", (socket) => {
 		io.to(roomCode).emit("playersUpdated", {
 			players: room.players,
 		});
+	});
+
+	socket.on("storedCard:add", ({ roomCode, playerId, cardData }) => {
+		const room = rooms[roomCode];
+		if (!room) return;
+
+		const player = room.players[playerId];
+		if (!player) return;
+
+		// Add card to player's stored cards
+		player.storedCards.push(cardData);
+
+		console.log(`Stored card for player ${playerId}: ${cardData.name} (${cardData.skipAmount})`);
+
+		// Notify all clients of the player state update
+		io.to(roomCode).emit("playersUpdated", {
+			players: room.players,
+		});
+	});
+
+	socket.on("storedCard:remove", ({ roomCode, playerId, cardId }) => {
+		console.log(`🗑️ SERVER: Received storedCard:remove request for player ${playerId}, card ${cardId}`);
+
+		const room = rooms[roomCode];
+		if (!room) {
+			console.log(`🗑️ SERVER: Room ${roomCode} not found`);
+			return;
+		}
+
+		const player = room.players[playerId];
+		if (!player) {
+			console.log(`🗑️ SERVER: Player ${playerId} not found in room`);
+			return;
+		}
+
+		console.log(`🗑️ SERVER: Player ${playerId} has ${player.storedCards.length} stored cards before removal`);
+		console.log(`🗑️ SERVER: Stored cards:`, player.storedCards);
+
+		// Remove card from player's stored cards
+		const index = player.storedCards.findIndex(card => card.id === cardId);
+		if (index !== -1) {
+			const removedCard = player.storedCards.splice(index, 1)[0];
+			console.log(`✅ SERVER: Removed stored card for player ${playerId}: ${removedCard.name}`);
+			console.log(`✅ SERVER: Player now has ${player.storedCards.length} stored cards`);
+
+			// Notify all clients of the player state update
+			io.to(roomCode).emit("playersUpdated", {
+				players: room.players,
+			});
+			console.log(`✅ SERVER: Emitted playersUpdated to room ${roomCode}`);
+		} else {
+			console.log(`⚠️ SERVER: Card ${cardId} not found in player's storedCards`);
+		}
 	});
 
 	// New socket handler for logging card purchases

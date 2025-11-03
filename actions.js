@@ -117,18 +117,18 @@ const actions = [
 		used: false,
 	},
 	// ---------------------- to do
+	{
+		name: "fulllaundryload",
+		texture: "action-p-fulllaundryload.png",
+		title: "Full Laundry Load",
+		statement:
+			"You chose to wash a full load of laundry. Less free space = less friction. Keep this card until the next laundry cycle, then add only half the usual microplastics.",
+		action: "store:washing:skip:half",
+		used: false,
+	},
 	// {
-	// 	name: "fulllaundryload",
-	// 	texture: "action-p-fulllaundryload.png",
-	// 	title: "Full Laundry Load",
-	// 	statement:
-	// 		"You chose to wash a full load of laundry. Less free space = less friction. Keep this card until the next laundry cycle, then add only half the usual microplastics.",
-	// 	action: "",
-	// 	used: false,
-	// },
-	// {
-	// 	name: "coldwaterwash",
-	// 	texture: "action-p-coldwaterwash.png",
+		// 	name: "coldwaterwash",
+		// 	texture: "action-p-coldwaterwash.png",
 	// 	title: "Cold Water Wash",
 	// 	statement:
 	// 		"You washed your laundry with cold water to reduce fibre shedding. Cold temperature = fewer microplastics. That was easy! Keep this card until the next laundry cycle, then add only half the usual microplastics.",
@@ -144,15 +144,15 @@ const actions = [
 	// 	action: "",
 	// 	used: false,
 	// },
-	// {
-	// 	name: "airdrying",
-	// 	texture: "action-p-airdrying.png",
-	// 	title: "Air-drying",
-	// 	statement:
-	// 		"You air-dried your laundry instead of using a tumble dryer. You prevented a lot of microplastics from getting into the air. Smart move! Keep this card until the next laundry cycle, then add only half the usual microplastics.",
-	// 	action: "",
-	// 	used: false,
-	// },
+	{
+		name: "airdrying",
+		texture: "action-p-airdrying.png",
+		title: "Air-drying",
+		statement:
+			"You air-dried your laundry instead of using a tumble dryer. You prevented a lot of microplastics from getting into the air. Smart move! Keep this card until the next laundry cycle, then add only half the usual microplastics.",
+		action: "store:washing:skip:half",
+		used: false,
+	},
 	// {
 	// 	name: "secondlhandstuff",
 	// 	texture: "action-p-secondlhandstuff.png",
@@ -234,15 +234,15 @@ const actions = [
 	// 	action: "",
 	// 	used: false,
 	// },
-	// {
-	// 	name: "houserules",
-	// 	texture: "action-n-houserules.png",
-	// 	title: "House Rules",
-	// 	statement:
-	// 		"Your housemates agree: let's wash at colder temperatures to release fewer airborne fibres into the house. You stick to the plan. Next time you do laundry, add 1 fewer microplastic to indoor air.",
-	// 	action: "microplastics:add:2",
-	// 	used: false,
-	// },
+	{
+		name: "houserules",
+		texture: "action-p-houserules.png",
+		title: "House Rules",
+		statement:
+			"Your housemates agree: let's wash at colder temperatures to release fewer airborne fibres into the house. You stick to the plan. Next time you do laundry, add 1 fewer microplastic to indoor air.",
+		action: "store:washing:skip:1",
+		used: false,
+	},
 	/// ------------------------------------ end of todo
 	
 	{
