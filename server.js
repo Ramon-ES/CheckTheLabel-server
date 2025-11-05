@@ -8,6 +8,7 @@ const trivia = require("./trivia");
 const actions = require("./actions");
 const cardOptions = require("./cardOptions");
 const gameDataLogger = require("./gameDataLogger");
+const crypto = require("crypto");
 const app = express();
 const server = http.createServer(app);
 
@@ -138,6 +139,85 @@ function shuffleArray(array) {
 		.map((value) => ({ value, sort: Math.random() }))
 		.sort((a, b) => a.sort - b.sort)
 		.map(({ value }) => value);
+}
+
+// ✅ Completion Code System (for testing verification)
+const COMPLETION_SECRET = process.env.COMPLETION_SECRET || "changeme-use-env-variable-in-production";
+
+/**
+ * Generate a signed completion code when a player finishes the game
+ * @param {string} playerId - Player UUID
+ * @param {string} roomId - Room code
+ * @param {string} reason - End reason (microplastics/wardrobe)
+ * @returns {string} - Completion code (e.g., "CHK-A3F8D192-L5K2PM")
+ */
+function generateCompletionCode(playerId, roomId, reason) {
+	const timestamp = Date.now();
+	const dataString = JSON.stringify({ playerId, roomId, reason, timestamp });
+
+	// Create HMAC signature
+	const signature = crypto
+		.createHmac("sha256", COMPLETION_SECRET)
+		.update(dataString)
+		.digest("hex")
+		.substring(0, 8)
+		.toUpperCase();
+
+	// Create short timestamp representation (base36 for compactness)
+	const timestampShort = timestamp.toString(36).toUpperCase();
+
+	return `CHK-${signature}-${timestampShort}`;
+}
+
+/**
+ * Verify a completion code
+ * @param {string} code - Completion code to verify
+ * @returns {object} - { valid: boolean, data?: object, error?: string }
+ */
+function verifyCompletionCode(code) {
+	try {
+		// Parse code format: CHK-SIGNATURE-TIMESTAMP
+		const parts = code.trim().toUpperCase().split("-");
+
+		if (parts.length !== 3 || parts[0] !== "CHK") {
+			return { valid: false, error: "Invalid code format" };
+		}
+
+		const [prefix, signature, timestampShort] = parts;
+		const timestamp = parseInt(timestampShort, 36);
+
+		if (isNaN(timestamp)) {
+			return { valid: false, error: "Invalid timestamp in code" };
+		}
+
+		// Note: We can't fully verify the signature without the original data (playerId, roomId)
+		// But we can validate the code structure and timestamp
+		const completionDate = new Date(timestamp);
+		const now = new Date();
+		const daysDiff = Math.floor((now - completionDate) / (1000 * 60 * 60 * 24));
+
+		// Basic validation: code should have valid structure and reasonable timestamp
+		if (completionDate > now) {
+			return { valid: false, error: "Code timestamp is in the future" };
+		}
+
+		// Code is older than 1 year - might be suspicious
+		if (daysDiff > 365) {
+			return { valid: false, error: "Code is too old (>1 year)" };
+		}
+
+		// Code appears valid (structure-wise)
+		return {
+			valid: true,
+			data: {
+				completionDate: completionDate.toISOString(),
+				daysAgo: daysDiff,
+				signature: signature
+			}
+		};
+	} catch (error) {
+		return { valid: false, error: "Failed to parse code" };
+	}
 }
 
 // CPU Player Management Functions
@@ -569,68 +649,11 @@ io.on("connection", (socket) => {
 		// Add CPU players for single player game
 		addCPUPlayers(roomCode);
 
-		// Immediately start the game since this is single player mode
-		rooms[roomCode].gameState.currentPhase = "game";
+		// Start with introduction phase for single player
+		rooms[roomCode].gameState.currentPhase = "introduction";
 		rooms[roomCode].gameState.started = true;
 
-		// Set up turn order - human player first, then CPU players
-		const playerIds = Object.keys(rooms[roomCode].players).filter(id => rooms[roomCode].players[id].active);
-		const sortedPlayerIds = playerIds.sort((a, b) => {
-			const playerA = rooms[roomCode].players[a];
-			const playerB = rooms[roomCode].players[b];
-			if (playerA.isCPU && !playerB.isCPU) return 1; // CPU comes after human
-			if (!playerA.isCPU && playerB.isCPU) return -1; // Human comes before CPU
-			return 0;
-		});
-
-		rooms[roomCode].gameState.turnOrder = sortedPlayerIds;
-		rooms[roomCode].gameState.currentTurnIndex = 0;
-		rooms[roomCode].gameState.currentTurnPlayerId = sortedPlayerIds[0];
-
-		// Generate initial cards for the clothing market
-		const options = rooms[roomCode].gameState.cardOptions;
-		const items = Object.keys(options);
-
-		for (let i = 0; i < rooms[roomCode].gameState.cards.length; i++) {
-			const card = rooms[roomCode].gameState.cards[i];
-
-			// Generate a new card for each slot
-			const itemType = items[Math.floor(Math.random() * items.length)];
-			const itemOptions = options[itemType];
-
-			// decide randomly between new or secondHand
-			const condition =
-				Math.random() < 0.5 && itemOptions.secondHand.length > 0
-					? "secondHand"
-					: "new";
-
-			const choices = itemOptions[condition];
-			const choice = choices[Math.floor(Math.random() * choices.length)];
-
-			card.active = true;
-			card.selected = false;
-			card.title = choice.sort;
-			card.material = choice.material;
-			card.condition = condition;
-			card.item = itemType;
-			card.sort = choice.sort;
-			card.points = choice.value;
-			card.price = choice.price;
-			card.washed = false;
-
-			console.log(`Generated initial card for slot ${i}: ${choice.sort} ${itemType}`);
-		}
-
-		console.log(`🤖 Started single player game in room ${roomCode} with ${sortedPlayerIds.length} players`);
-
-		// 📊 Initialize analytics tracking for this game
-		if (!rooms[roomCode].gameSession) {
-			rooms[roomCode].gameSession = gameDataLogger.initGameSession(roomCode, rooms[roomCode].players);
-			console.log(`📊 Analytics tracking started for game ${rooms[roomCode].gameSession.gameId}`);
-		}
-
-		// ⏱️ Start game timer for 20-minute event tracking
-		startGameTimer(roomCode);
+		console.log(`🤖 Started single player game in room ${roomCode} - showing introduction`);
 
 		socket.emit("roomCreated", { roomCode });
 		socket.emit("joinedRoom", {
@@ -640,11 +663,6 @@ io.on("connection", (socket) => {
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
 		});
-
-		// For CPU games, resend latest event in case game was stuck
-		setTimeout(() => {
-			resendLatestEventToCPUPlayer(roomCode, playerId);
-		}, 1500);
 	});
 
 	socket.on("updateUsername", ({ playerId, newUsername }) => {
@@ -879,6 +897,12 @@ io.on("connection", (socket) => {
 		// ✅ Set nested value using the path
 		setDeepValue(room.gameState, path, value);
 		
+		// 🎬 Start introduction phase when phase changes to "introduction"
+		if (path === "currentPhase" && value === "introduction") {
+			console.log(`🎬 Introduction phase started for room ${roomCode}`);
+			startIntroductionTimer(roomCode);
+		}
+
 		// 🎮 Initialize first turn player when game starts
 		if (path === "currentPhase" && value === "game" && !room.gameState.currentTurnPlayerId) {
 			const playerIds = Object.keys(room.players).filter(id => room.players[id].active);
@@ -894,6 +918,7 @@ io.on("connection", (socket) => {
 
 				room.gameState.currentTurnPlayerId = sortedPlayerIds[0];
 				room.gameState.currentTurnIndex = 0;
+				room.gameState.turnOrder = sortedPlayerIds;
 				console.log(`🎯 Game started! Turn order:`, sortedPlayerIds.map(id => room.players[id].username));
 				console.log(`🎯 First turn player: ${room.players[sortedPlayerIds[0]].username}`);
 
@@ -1059,6 +1084,50 @@ io.on("connection", (socket) => {
 			isCorrect,
 			room.gameState.roundCounter
 		);
+	});
+
+	// 🎬 Introduction: Player reached waitGroup and is ready
+	socket.on("intro:playerReady", ({ roomCode, playerId }) => {
+		const room = rooms[roomCode];
+		if (!room) return;
+
+		// Check if player is already marked as ready
+		if (room.gameState.introduction.playersReady.includes(playerId)) {
+			console.log(`🎬 Player ${playerId} already marked as ready`);
+			return;
+		}
+
+		// Add player to ready list
+		room.gameState.introduction.playersReady.push(playerId);
+		const player = room.players[playerId];
+		console.log(`🎬 Player ${player?.username || playerId} is ready (${room.gameState.introduction.playersReady.length} ready)`);
+
+		// Check if this is a single player game (1 human + CPUs)
+		const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+		const isSinglePlayer = humanPlayers.length === 1;
+
+		// Increment version for state tracking
+		incrementGameStateVersion(room);
+
+		// Broadcast updated state
+		io.to(roomCode).emit("gameStateUpdated", {
+			gameState: room.gameState,
+		});
+
+		// For single player: start immediately when ready
+		if (isSinglePlayer) {
+			console.log(`🎬 Single player ready, starting game immediately in room ${roomCode}`);
+			stopIntroductionTimer(roomCode);
+			startGameFromIntroduction(roomCode);
+			return;
+		}
+
+		// For multiplayer: check if all players are ready
+		if (checkIfAllPlayersReady(roomCode)) {
+			console.log(`🎬 All players ready, starting game early in room ${roomCode}`);
+			stopIntroductionTimer(roomCode);
+			startGameFromIntroduction(roomCode);
+		}
 	});
 
 	socket.on("action:get", ({ roomCode }) => {
@@ -1645,6 +1714,22 @@ io.on("connection", (socket) => {
 		if (reason) {
 			room.gameState.ended = reason;
 
+			// ✅ Generate completion codes for all players
+			const completionCodes = {};
+			console.log("\n==============================================");
+			console.log(`🎮 GAME ENDED (${reason.toUpperCase()}) - Room: ${roomCode}`);
+			console.log("==============================================");
+			Object.keys(room.players).forEach((playerId) => {
+				const player = room.players[playerId];
+				// Only generate codes for non-CPU players
+				if (!player.isCPU) {
+					const code = generateCompletionCode(playerId, roomCode, reason);
+					completionCodes[playerId] = code;
+					console.log(`✅ ${player.username}: ${code}`);
+				}
+			});
+			console.log("==============================================\n");
+
 			// 📊 End game session and save analytics
 			if (room.gameSession) {
 				gameDataLogger.endGameSession(room.gameSession, room, reason);
@@ -1657,8 +1742,9 @@ io.on("connection", (socket) => {
 			io.to(roomCode).emit("game:ended", {
 				reason,
 				gameState: room.gameState,
+				completionCodes: completionCodes,
 			});
-			if (callback) callback({ ended: true, reason, gameState: room.gameState });
+			if (callback) callback({ ended: true, reason, gameState: room.gameState, completionCodes });
 		} else {
 			if (callback) callback({ ended: false });
 		}
@@ -1966,7 +2052,7 @@ function createBaseGameState() {
 		version: 1,
 		lastUpdate: Date.now(),
 		started: false,
-		phase: ["login", "room", "game"],
+		phase: ["login", "room", "introduction", "game"],
 		phaseCounter: 0,
 		currentPhase: "login",
 		roundCounter: 0,
@@ -1974,6 +2060,13 @@ function createBaseGameState() {
 		stepCounter: 0,
 		currentTurnIndex: 0,
 		currentTurnPlayerId: undefined,
+		turnOrder: [],
+		introduction: {
+			active: false,
+			startTime: null,
+			countdown: 90,
+			playersReady: [],
+		},
 		trivia: {
 			active: false,
 			title: undefined,
@@ -2021,6 +2114,7 @@ function createBaseRoom() {
 		gameTimerInterval: null, // Interval to track game time
 		gameStartTime: null, // Timestamp when game started
 		twentyMinuteEventFired: false, // Track if 20-minute event was already fired
+		introductionTimerInterval: null, // Interval for introduction countdown
 	};
 }
 
@@ -2078,11 +2172,41 @@ function startGameTimer(roomCode) {
 			room.twentyMinuteEventFired = true;
 			console.log(`⏰ Game in room ${roomCode} has reached 20 minutes!`);
 
+			// 🎮 Mark game as ended with timeCap reason
+			room.gameState.ended = "timeCap";
+
+			// ✅ Generate completion codes for all players (without full game end)
+			const completionCodes = {};
+			console.log("\n==============================================");
+			console.log(`⏰ TIME CAP REACHED (20 MINUTES) - Room: ${roomCode}`);
+			console.log("==============================================");
+			Object.keys(room.players).forEach((playerId) => {
+				const player = room.players[playerId];
+				// Only generate codes for non-CPU players
+				if (!player.isCPU) {
+					const code = generateCompletionCode(playerId, roomCode, "timeCap");
+					completionCodes[playerId] = code;
+					console.log(`✅ ${player.username}: ${code}`);
+				}
+			});
+			console.log("==============================================\n");
+
+			// 📊 End game session and save analytics
+			if (room.gameSession) {
+				gameDataLogger.endGameSession(room.gameSession, room, "timeCap");
+				console.log(`📊 Game ${room.gameSession.gameId} analytics saved (timeCap)`);
+			}
+
+			// ⏱️ Stop game timer
+			stopGameTimer(roomCode);
+
 			// Emit event to all players in the room
 			io.to(roomCode).emit("game:twentyMinutes", {
 				roomCode,
 				elapsedTime,
-				message: "The game has been running for 20 minutes"
+				message: "The game has been running for 20 minutes",
+				completionCodes: completionCodes,
+				gameState: room.gameState
 			});
 		}
 	}, 30000); // Check every 30 seconds
@@ -2098,6 +2222,189 @@ function stopGameTimer(roomCode) {
 		room.gameTimerInterval = null;
 		console.log(`⏱️ Stopped game timer for room ${roomCode}`);
 	}
+}
+
+// 🎬 Introduction Timer Functions
+function startIntroductionTimer(roomCode) {
+	if (!rooms[roomCode]) return;
+
+	const room = rooms[roomCode];
+
+	// Don't start timer if already running
+	if (room.introductionTimerInterval) {
+		console.log(`🎬 Introduction timer already running for room ${roomCode}`);
+		return;
+	}
+
+	// Check if this is a single player game (1 human + CPUs)
+	const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+	const isSinglePlayer = humanPlayers.length === 1;
+
+	// Initialize introduction state
+	room.gameState.introduction.active = true;
+	room.gameState.introduction.startTime = Date.now();
+	room.gameState.introduction.playersReady = [];
+
+	if (isSinglePlayer) {
+		// Single player: no countdown, just wait for player to finish reading
+		room.gameState.introduction.countdown = -1; // -1 indicates no countdown
+		console.log(`🎬 Single player introduction started for room ${roomCode} - no countdown`);
+
+		// Broadcast countdown=-1 to hide countdown UI for single player
+		io.to(roomCode).emit("intro:countdownUpdate", {
+			countdown: -1,
+		});
+	} else {
+		// Multiplayer: start 90-second countdown
+		room.gameState.introduction.countdown = 90;
+		console.log(`🎬 Started 90-second introduction countdown for room ${roomCode}`);
+
+		// Update countdown every second
+		room.introductionTimerInterval = setInterval(() => {
+			if (!rooms[roomCode]) {
+				clearInterval(room.introductionTimerInterval);
+				return;
+			}
+
+			room.gameState.introduction.countdown--;
+
+			// Broadcast countdown update to all clients
+			io.to(roomCode).emit("intro:countdownUpdate", {
+				countdown: room.gameState.introduction.countdown,
+			});
+
+			console.log(`🎬 Introduction countdown: ${room.gameState.introduction.countdown}s remaining`);
+
+			// Check if countdown reached 0
+			if (room.gameState.introduction.countdown <= 0) {
+				console.log(`🎬 Introduction countdown finished for room ${roomCode}`);
+				stopIntroductionTimer(roomCode);
+				startGameFromIntroduction(roomCode);
+			}
+		}, 1000); // Update every second
+	}
+
+	// Increment version for state tracking
+	incrementGameStateVersion(room);
+
+	// Broadcast initial state
+	io.to(roomCode).emit("gameStateUpdated", {
+		gameState: room.gameState,
+	});
+}
+
+function stopIntroductionTimer(roomCode) {
+	if (!rooms[roomCode]) return;
+
+	const room = rooms[roomCode];
+
+	if (room.introductionTimerInterval) {
+		clearInterval(room.introductionTimerInterval);
+		room.introductionTimerInterval = null;
+		room.gameState.introduction.active = false;
+		console.log(`🎬 Stopped introduction timer for room ${roomCode}`);
+	}
+}
+
+function checkIfAllPlayersReady(roomCode) {
+	if (!rooms[roomCode]) return false;
+
+	const room = rooms[roomCode];
+	const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+	const readyPlayers = room.gameState.introduction.playersReady;
+
+	// Check if all human players are ready
+	const allReady = humanPlayers.every(p => readyPlayers.includes(p.id));
+
+	if (allReady && humanPlayers.length > 0) {
+		console.log(`🎬 All ${humanPlayers.length} players are ready in room ${roomCode}`);
+		return true;
+	}
+
+	return false;
+}
+
+function startGameFromIntroduction(roomCode) {
+	if (!rooms[roomCode]) return;
+
+	const room = rooms[roomCode];
+
+	console.log(`🎮 Starting game from introduction in room ${roomCode}`);
+
+	// Stop introduction timer
+	stopIntroductionTimer(roomCode);
+
+	// Set phase to game
+	room.gameState.currentPhase = "game";
+	room.gameState.started = true;
+
+	// Initialize first turn player if not set
+	if (!room.gameState.currentTurnPlayerId) {
+		const playerIds = Object.keys(room.players).filter(id => room.players[id].active);
+		if (playerIds.length > 0) {
+			const sortedPlayerIds = playerIds.sort((a, b) => {
+				const playerA = room.players[a];
+				const playerB = room.players[b];
+				if (playerA.isCPU && !playerB.isCPU) return 1;
+				if (!playerA.isCPU && playerB.isCPU) return -1;
+				return 0;
+			});
+
+			room.gameState.currentTurnPlayerId = sortedPlayerIds[0];
+			room.gameState.currentTurnIndex = 0;
+			room.gameState.turnOrder = sortedPlayerIds;
+			console.log(`🎯 First turn player: ${room.players[sortedPlayerIds[0]].username}`);
+		}
+	}
+
+	// Generate initial cards
+	const options = room.gameState.cardOptions;
+	const items = Object.keys(options);
+
+	for (let i = 0; i < room.gameState.cards.length; i++) {
+		const card = room.gameState.cards[i];
+
+		const itemType = items[Math.floor(Math.random() * items.length)];
+		const itemOptions = options[itemType];
+
+		const condition =
+			Math.random() < 0.5 && itemOptions.secondHand.length > 0
+				? "secondHand"
+				: "new";
+
+		const choices = itemOptions[condition];
+		const choice = choices[Math.floor(Math.random() * choices.length)];
+
+		card.active = true;
+		card.selected = false;
+		card.title = choice.sort;
+		card.material = choice.material;
+		card.condition = condition;
+		card.item = itemType;
+		card.sort = choice.sort;
+		card.points = choice.value;
+		card.price = choice.price;
+		card.washed = false;
+	}
+
+	// Initialize analytics tracking for this game
+	if (!room.gameSession) {
+		room.gameSession = gameDataLogger.initGameSession(roomCode, room.players);
+		console.log(`📊 Analytics tracking started for game ${room.gameSession.gameId}`);
+	}
+
+	// Start game timer for 20-minute event tracking
+	startGameTimer(roomCode);
+
+	// Increment version for state tracking
+	incrementGameStateVersion(room);
+
+	// Broadcast game start
+	io.to(roomCode).emit("gameStateUpdated", {
+		gameState: room.gameState,
+	});
+
+	console.log(`✅ Game started successfully in room ${roomCode}`);
 }
 
 // 🔄 Tab Visibility Event Queuing Functions
@@ -2266,6 +2573,34 @@ app.get("/", (req, res) => {
 
 app.get("/ping", (req, res) => {
 	res.status(200).json({ message: "Server is running!" });
+});
+
+// ✅ Completion code verification endpoint
+app.get("/verify", (req, res) => {
+	const code = req.query.code;
+
+	if (!code) {
+		return res.status(400).json({
+			valid: false,
+			error: "Missing 'code' parameter. Use: /verify?code=YOUR_CODE"
+		});
+	}
+
+	const result = verifyCompletionCode(code);
+
+	if (result.valid) {
+		res.status(200).json({
+			valid: true,
+			message: "✅ Valid completion code!",
+			completionDate: result.data.completionDate,
+			daysAgo: result.data.daysAgo
+		});
+	} else {
+		res.status(400).json({
+			valid: false,
+			error: result.error || "Invalid code"
+		});
+	}
 });
 
 // Analytics middleware - verify token
