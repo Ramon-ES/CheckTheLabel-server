@@ -2322,7 +2322,7 @@ function startGameTimer(roomCode) {
 		}
 
 		const elapsedTime = Date.now() - room.gameStartTime;
-		const twentyMinutesMs = 1 * 60 * 1000; // 20 minutes in milliseconds
+		const twentyMinutesMs = 20 * 60 * 1000; // 20 minutes in milliseconds
 
 		// Check if 20 minutes have passed and event hasn't been fired yet
 		if (elapsedTime >= twentyMinutesMs && !room.twentyMinuteEventFired) {
