@@ -148,8 +148,8 @@ const COMPLETION_SECRET = process.env.COMPLETION_SECRET || "changeme-use-env-var
  * Generate a signed completion code when a player finishes the game
  * @param {string} playerId - Player UUID
  * @param {string} roomId - Room code
- * @param {string} reason - End reason (microplastics/wardrobe)
- * @returns {string} - Completion code (e.g., "CHK-A3F8D192-L5K2PM")
+ * @param {string} reason - End reason (microplastics/wardrobe/timeCap)
+ * @returns {string} - Completion code (e.g., "A3F8D192-L5K2PM")
  */
 function generateCompletionCode(playerId, roomId, reason) {
 	const timestamp = Date.now();
@@ -166,32 +166,37 @@ function generateCompletionCode(playerId, roomId, reason) {
 	// Create short timestamp representation (base36 for compactness)
 	const timestampShort = timestamp.toString(36).toUpperCase();
 
-	return `CHK-${signature}-${timestampShort}`;
+	return `${signature}-${timestampShort}`;
 }
 
 /**
- * Verify a completion code
+ * Verify a completion code against gameAnalytics.json
  * @param {string} code - Completion code to verify
  * @returns {object} - { valid: boolean, data?: object, error?: string }
  */
 function verifyCompletionCode(code) {
 	try {
-		// Parse code format: CHK-SIGNATURE-TIMESTAMP
+		// Parse code format: SIGNATURE-TIMESTAMP (new) or CHK-SIGNATURE-TIMESTAMP (legacy)
 		const parts = code.trim().toUpperCase().split("-");
 
-		if (parts.length !== 3 || parts[0] !== "CHK") {
+		let signature, timestampShort;
+
+		if (parts.length === 2) {
+			// New format: SIGNATURE-TIMESTAMP
+			[signature, timestampShort] = parts;
+		} else if (parts.length === 3 && parts[0] === "CHK") {
+			// Legacy format: CHK-SIGNATURE-TIMESTAMP
+			[, signature, timestampShort] = parts;
+		} else {
 			return { valid: false, error: "Invalid code format" };
 		}
 
-		const [prefix, signature, timestampShort] = parts;
 		const timestamp = parseInt(timestampShort, 36);
 
 		if (isNaN(timestamp)) {
 			return { valid: false, error: "Invalid timestamp in code" };
 		}
 
-		// Note: We can't fully verify the signature without the original data (playerId, roomId)
-		// But we can validate the code structure and timestamp
 		const completionDate = new Date(timestamp);
 		const now = new Date();
 		const daysDiff = Math.floor((now - completionDate) / (1000 * 60 * 60 * 24));
@@ -206,17 +211,99 @@ function verifyCompletionCode(code) {
 			return { valid: false, error: "Code is too old (>1 year)" };
 		}
 
-		// Code appears valid (structure-wise)
+		// 🔍 Verify signature against gameAnalytics.json
+		const analytics = gameDataLogger.getAllAnalytics();
+		const games = analytics.games || [];
+
+		// Search for matching game (timestamp within 10 seconds)
+		const TIME_TOLERANCE = 10000; // 10 seconds in milliseconds
+		let matchedGame = null;
+		let matchedPlayer = null;
+
+		for (const game of games) {
+			if (!game.endTime) continue;
+
+			const gameEndTime = new Date(game.endTime).getTime();
+			const timeDiff = Math.abs(gameEndTime - timestamp);
+
+			// Check if timestamps match (within tolerance)
+			if (timeDiff <= TIME_TOLERANCE) {
+				// Search for matching player in this game
+				for (const playerId in game.players) {
+					const player = game.players[playerId];
+
+					// Skip CPU players
+					if (player.isCPU) continue;
+
+					// Try to regenerate signature for this player
+					const dataString = JSON.stringify({
+						playerId: playerId,
+						roomId: game.roomCode,
+						reason: game.endReason,
+						timestamp: timestamp
+					});
+
+					const expectedSignature = crypto
+						.createHmac("sha256", COMPLETION_SECRET)
+						.update(dataString)
+						.digest("hex")
+						.substring(0, 8)
+						.toUpperCase();
+
+					// Check if signature matches
+					if (expectedSignature === signature) {
+						matchedGame = game;
+						matchedPlayer = { ...player, playerId: playerId };
+						break;
+					}
+				}
+
+				if (matchedGame) break;
+			}
+		}
+
+		// If no match found, code is invalid
+		if (!matchedGame || !matchedPlayer) {
+			return {
+				valid: false,
+				error: "Code signature verification failed - no matching game record found"
+			};
+		}
+
+		// ✅ Code verified successfully! Return rich game data
 		return {
 			valid: true,
 			data: {
 				completionDate: completionDate.toISOString(),
 				daysAgo: daysDiff,
-				signature: signature
+				player: {
+					playerId: matchedPlayer.playerId,
+					username: matchedPlayer.username,
+					finalPoints: matchedPlayer.finalPoints,
+					finalMoney: matchedPlayer.finalMoney,
+					totalClothingItems: matchedPlayer.totalClothingItems,
+					triviaStats: {
+						correct: matchedPlayer.triviaAnswered.correct,
+						incorrect: matchedPlayer.triviaAnswered.incorrect,
+						total: matchedPlayer.triviaAnswered.total
+					}
+				},
+				game: {
+					gameId: matchedGame.gameId,
+					roomCode: matchedGame.roomCode,
+					duration: matchedGame.duration,
+					totalRounds: matchedGame.totalRounds,
+					endReason: matchedGame.endReason,
+					finalMicroplastics: matchedGame.finalMicroplastics,
+					playerCount: matchedGame.playerCount,
+					winner: matchedGame.winner
+				},
+				isWinner: matchedGame.winner && matchedGame.winner.playerId === matchedPlayer.playerId
 			}
 		};
 	} catch (error) {
-		return { valid: false, error: "Failed to parse code" };
+		console.error("Error verifying completion code:", error);
+		return { valid: false, error: "Failed to verify code" };
 	}
 }
 
@@ -849,6 +936,39 @@ io.on("connection", (socket) => {
 		const room = rooms[roomCode];
 		if (!room) return;
 
+		const playerId = socket.playerId;
+		const currentTurnPlayerId = room.gameState.currentTurnPlayerId;
+
+		// ✅ CRITICAL: Validate turn ownership for turn-sensitive updates
+		const turnSensitivePaths = ['stepCounter', 'currentTurnPlayerId', 'roundCounter', 'turnCounter'];
+		const isTurnSensitive = turnSensitivePaths.some(p => path === p || path.startsWith(p + '.'));
+
+		if (isTurnSensitive && currentTurnPlayerId !== playerId) {
+			const player = room.players[playerId];
+			const currentPlayer = room.players[currentTurnPlayerId];
+
+			// Allow if:
+			// 1. The requester is a CPU (server-controlled)
+			// 2. OR it's a single-player game and the current turn player is CPU (human controls CPU actions)
+			const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+			const isSinglePlayer = humanPlayers.length === 1;
+			const currentPlayerIsCPU = currentPlayer && currentPlayer.isCPU;
+
+			const canUpdate = player?.isCPU || (isSinglePlayer && currentPlayerIsCPU);
+
+			if (!canUpdate) {
+				console.log(`❌ Rejected game:update from ${playerId} - not their turn (path: ${path})`);
+				console.log(`   Current turn: ${currentTurnPlayerId} (${currentPlayer?.username})`);
+				console.log(`   Requester: ${playerId} (${player?.username})`);
+
+				// Send current game state back to sync the client
+				socket.emit("gameStateUpdated", {
+					gameState: room.gameState,
+				});
+				return;
+			}
+		}
+
 		// ✅ Ensure microplastics can't go negative
 		if (path === "microplastics" && value < 0) {
 			value = 0;
@@ -858,7 +978,7 @@ io.on("connection", (socket) => {
 		const prevStepCounter = room.gameState.stepCounter;
 		const prevCurrentTurnPlayerId = room.gameState.currentTurnPlayerId;
 
-		console.log(`📡 game:update received - path: ${path}, value: ${value}, prevStep: ${prevStepCounter}`);
+		console.log(`📡 game:update received - path: ${path}, value: ${value}, prevStep: ${prevStepCounter}, playerId: ${playerId}`);
 
 		// 🔄 Intercept turn advancement to ensure consistent player ordering
 		if (path === "currentTurnPlayerId" && value !== room.gameState.currentTurnPlayerId) {
@@ -1016,6 +1136,43 @@ io.on("connection", (socket) => {
 	socket.on("players:update", ({ roomCode, path, value }) => {
 		const room = rooms[roomCode];
 		if (!room) return;
+
+		const playerId = socket.playerId;
+		const currentTurnPlayerId = room.gameState.currentTurnPlayerId;
+
+		// ✅ CRITICAL: Validate player can only update their own data or if it's their turn
+		// Extract the target player ID from path (e.g., "playerId123.money" -> "playerId123")
+		const targetPlayerId = path.split('.')[0];
+
+		// Player can update their own data, or current turn player can update game-related data
+		let canUpdate = targetPlayerId === playerId || currentTurnPlayerId === playerId;
+
+		// In single-player mode, also allow human to update CPU player data (since CPU actions are client-driven)
+		if (!canUpdate) {
+			const player = room.players[playerId];
+			const targetPlayer = room.players[targetPlayerId];
+			const humanPlayers = Object.values(room.players).filter(p => !p.isCPU);
+			const isSinglePlayer = humanPlayers.length === 1;
+
+			// Allow if:
+			// 1. The requester is a CPU (server-controlled)
+			// 2. OR it's single-player and target is a CPU (human controls CPU actions)
+			canUpdate = player?.isCPU || (isSinglePlayer && targetPlayer?.isCPU);
+		}
+
+		if (!canUpdate) {
+			const player = room.players[playerId];
+			console.log(`❌ Rejected players:update from ${playerId} - unauthorized (path: ${path})`);
+			console.log(`   Target player: ${targetPlayerId}`);
+			console.log(`   Current turn: ${currentTurnPlayerId} (${room.players[currentTurnPlayerId]?.username})`);
+			console.log(`   Requester: ${playerId} (${player?.username})`);
+
+			// Send current players state back to sync the client
+			socket.emit("playersUpdated", {
+				players: room.players,
+			});
+			return;
+		}
 
 		// ✅ Ensure money never goes negative
 		if (path.endsWith('.money') && value < 0) {
@@ -2165,7 +2322,7 @@ function startGameTimer(roomCode) {
 		}
 
 		const elapsedTime = Date.now() - room.gameStartTime;
-		const twentyMinutesMs = 20 * 60 * 1000; // 20 minutes in milliseconds
+		const twentyMinutesMs = 1 * 60 * 1000; // 20 minutes in milliseconds
 
 		// Check if 20 minutes have passed and event hasn't been fired yet
 		if (elapsedTime >= twentyMinutesMs && !room.twentyMinuteEventFired) {
@@ -2593,7 +2750,10 @@ app.get("/verify", (req, res) => {
 			valid: true,
 			message: "✅ Valid completion code!",
 			completionDate: result.data.completionDate,
-			daysAgo: result.data.daysAgo
+			daysAgo: result.data.daysAgo,
+			player: result.data.player,
+			game: result.data.game,
+			isWinner: result.data.isWinner
 		});
 	} else {
 		res.status(400).json({
