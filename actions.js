@@ -4,7 +4,7 @@ const actions = [
 		texture: "action-n-frictionalert.png",
 		title: "Friction Alert!",
 		statement:
-		"test Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics.",
+		"Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
@@ -31,7 +31,7 @@ const actions = [
 		texture: "action-n-tumbledryer.png",
 		title: "Tumble Dryer",
 		statement:
-			"You dried your laundry with the tumble dryer this week. That releases many microplastic fibres in your indoor air! Add two microplastics.",
+			"You dried your laundry with the tumble dryer this week. That releases many microplastics in your indoor air! Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
@@ -85,7 +85,7 @@ const actions = [
 		texture: "action-n-thriftstore.png",
 		title: "Thrift Store",
 		statement:
-			"You decide to bring some clothes to the second-hand clothing store. Discard one of your clothing items.",
+			"You decide to bring some clothes to the second-hand clothing store. Discard one of your clothing items but keep the points!",
 		action: "card:discard:thriftstore",
 		used: false,
 	},
@@ -94,7 +94,7 @@ const actions = [
 		texture: "action-n-impulseshopping.png",
 		title: "Impulse Shopping",
 		statement:
-			"You bought one cheap synthetic T-shirt on a whim. That will release many microplastic fibres that end up in your environment or even in your body! Add two microplastics.",
+			"You bought one cheap synthetic T-shirt on a whim. That will release many microplastics that end up in your environment or even in your body! Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
@@ -239,7 +239,7 @@ const actions = [
 		texture: "action-p-houserules.png",
 		title: "House Rules",
 		statement:
-			"Your housemates agree: let's wash at colder temperatures to release fewer airborne fibres into the house. You stick to the plan. Next time you do laundry, add 1 fewer microplastic to indoor air.",
+			"Your housemates agree: let's wash at colder temperatures to release fewer microplastics. You stick to the plan. Next time you do laundry, add 1 fewer microplastic to indoor air.",
 		action: "store:washing:skip:1",
 		used: false,
 	},
@@ -259,7 +259,7 @@ const actions = [
 		texture: "action-p-naturaliscool.png",
 		title: "Natural is Cool",
 		statement:
-			"In your group, cotton and linen are the favorite fabrics. Natural fibres shed fewer airborne microplastics, so you fit right in. Remove 1 microplastic from indoor air.",
+			"In your group, cotton and linen are the favorite fabrics. Natural fibres shed NO microplastics, so you fit right in. Remove 1 microplastic from indoor air.",
 		action: "microplastics:remove:1",
 		used: false,
 	},
@@ -277,7 +277,7 @@ const actions = [
 		texture: "action-p-laundryhabits.png",
 		title: "Catch up: Laundry Habits",
 		statement:
-			"Your friends are washing at colder, shorter cycles. You also do your part - less heat means fewer fibers floating around! Remove 2 microplastic from indoor air.",
+			"Your friends are washing at colder, shorter cycles. You also do your part - less heat means fewer microplastics around! Remove 2 microplastic from indoor air.",
 		action: "microplastics:remove:2",
 		used: false,
 	},
