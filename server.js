@@ -1889,7 +1889,7 @@ io.on("connection", (socket) => {
 
 			// 📊 End game session and save analytics
 			if (room.gameSession) {
-				gameDataLogger.endGameSession(room.gameSession, room, reason);
+				gameDataLogger.endGameSession(room.gameSession, room, reason, completionCodes);
 				console.log(`📊 Game ${room.gameSession.gameId} analytics saved`);
 			}
 
@@ -2350,7 +2350,7 @@ function startGameTimer(roomCode) {
 
 			// 📊 End game session and save analytics
 			if (room.gameSession) {
-				gameDataLogger.endGameSession(room.gameSession, room, "timeCap");
+				gameDataLogger.endGameSession(room.gameSession, room, "timeCap", completionCodes);
 				console.log(`📊 Game ${room.gameSession.gameId} analytics saved (timeCap)`);
 			}
 

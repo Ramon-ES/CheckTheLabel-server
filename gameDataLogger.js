@@ -2,17 +2,26 @@ const fs = require('fs');
 const path = require('path');
 
 const ANALYTICS_FILE = path.join(__dirname, 'gameAnalytics.json');
+const COMPLETION_CODES_FILE = path.join(__dirname, 'completionCodes.json');
 const ANALYTICS_TOKEN = process.env.ANALYTICS_TOKEN;
 
 class GameDataLogger {
 	constructor() {
 		this.ensureAnalyticsFileExists();
+		this.ensureCompletionCodesFileExists();
 	}
 
 	ensureAnalyticsFileExists() {
 		if (!fs.existsSync(ANALYTICS_FILE)) {
 			console.log('📊 Creating new analytics file...');
 			fs.writeFileSync(ANALYTICS_FILE, JSON.stringify({ games: [] }, null, 2), 'utf8');
+		}
+	}
+
+	ensureCompletionCodesFileExists() {
+		if (!fs.existsSync(COMPLETION_CODES_FILE)) {
+			console.log('🎫 Creating new completion codes file...');
+			fs.writeFileSync(COMPLETION_CODES_FILE, JSON.stringify({ codes: [] }, null, 2), 'utf8');
 		}
 	}
 
@@ -32,6 +41,25 @@ class GameDataLogger {
 			console.log('✅ Analytics saved successfully');
 		} catch (error) {
 			console.error('❌ Error writing analytics file:', error);
+		}
+	}
+
+	readCompletionCodes() {
+		try {
+			const data = fs.readFileSync(COMPLETION_CODES_FILE, 'utf8');
+			return JSON.parse(data);
+		} catch (error) {
+			console.error('❌ Error reading completion codes file:', error);
+			return { codes: [] };
+		}
+	}
+
+	writeCompletionCodes(data) {
+		try {
+			fs.writeFileSync(COMPLETION_CODES_FILE, JSON.stringify(data, null, 2), 'utf8');
+			console.log('✅ Completion codes saved successfully');
+		} catch (error) {
+			console.error('❌ Error writing completion codes file:', error);
 		}
 	}
 
@@ -165,12 +193,44 @@ class GameDataLogger {
 	}
 
 	/**
+	 * Log completion codes for a game
+	 * @param {string} gameId - Game session ID
+	 * @param {string} roomCode - Room code
+	 * @param {object} completionCodes - Object with playerId: code pairs
+	 * @param {string} endReason - Reason game ended
+	 */
+	logCompletionCodes(gameId, roomCode, completionCodes, endReason) {
+		try {
+			const codesData = this.readCompletionCodes();
+			const timestamp = new Date().toISOString();
+
+			// Add each completion code to the codes array
+			Object.entries(completionCodes).forEach(([playerId, code]) => {
+				codesData.codes.push({
+					code: code,
+					gameId: gameId,
+					roomCode: roomCode,
+					playerId: playerId,
+					endReason: endReason,
+					timestamp: timestamp
+				});
+			});
+
+			this.writeCompletionCodes(codesData);
+			console.log(`🎫 Logged ${Object.keys(completionCodes).length} completion codes for game ${gameId}`);
+		} catch (error) {
+			console.error('❌ Error logging completion codes:', error);
+		}
+	}
+
+	/**
 	 * End a game session and save final data
 	 * @param {object} gameSession - Current game session
 	 * @param {object} room - Room object with final state
 	 * @param {string} endReason - Reason game ended
+	 * @param {object} completionCodes - Optional object with playerId: code pairs
 	 */
-	endGameSession(gameSession, room, endReason) {
+	endGameSession(gameSession, room, endReason, completionCodes = {}) {
 		const endTime = new Date();
 		const startTime = new Date(gameSession.startTime);
 
@@ -179,6 +239,7 @@ class GameDataLogger {
 		gameSession.endReason = endReason;
 		gameSession.totalRounds = room.gameState.roundCounter;
 		gameSession.finalMicroplastics = room.gameState.microplastics;
+		gameSession.completionCodes = completionCodes; // Store completion codes in analytics
 
 		if (room.gameState.endedBy) {
 			gameSession.endedBy = room.gameState.endedBy;
@@ -245,6 +306,11 @@ class GameDataLogger {
 		analytics.games.push(gameSession);
 		this.writeAnalytics(analytics);
 
+		// Log completion codes to separate file
+		if (Object.keys(completionCodes).length > 0) {
+			this.logCompletionCodes(gameSession.gameId, gameSession.roomCode, completionCodes, endReason);
+		}
+
 		console.log(`📊 Game session ended and saved: ${gameSession.gameId}`);
 		console.log(`   Duration: ${gameSession.duration}s, Rounds: ${gameSession.totalRounds}, Winner: ${gameSession.winner?.username}`);
 	}
@@ -303,6 +369,24 @@ class GameDataLogger {
 	 */
 	verifyToken(token) {
 		return token === ANALYTICS_TOKEN;
+	}
+
+	/**
+	 * Get all completion codes
+	 * @returns {object} - All completion codes data
+	 */
+	getAllCompletionCodes() {
+		return this.readCompletionCodes();
+	}
+
+	/**
+	 * Search for a specific completion code
+	 * @param {string} code - Completion code to search for
+	 * @returns {object|null} - Code data if found, null otherwise
+	 */
+	findCompletionCode(code) {
+		const codesData = this.readCompletionCodes();
+		return codesData.codes.find(entry => entry.code === code) || null;
 	}
 
 	/**
