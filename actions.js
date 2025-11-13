@@ -4,7 +4,7 @@ const actions = [
 		texture: "action-n-frictionalert.png",
 		title: "Friction Alert!",
 		statement:
-		"Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics.",
+		"test Friction alert! Wearing synthetic clothing releases microplastic fibers that end up in your environment or even in your body. Add two microplastics.",
 		action: "microplastics:add:2",
 		used: false,
 	},
