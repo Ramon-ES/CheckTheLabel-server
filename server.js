@@ -166,7 +166,7 @@ function generateCompletionCode(playerId, roomId, reason) {
 	// Create short timestamp representation (base36 for compactness)
 	const timestampShort = timestamp.toString(36).toUpperCase();
 
-	return `${signature}-${timestampShort}`;
+	return `CHF-${signature}-${timestampShort}`;
 }
 
 /**
