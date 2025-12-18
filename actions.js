@@ -26,15 +26,15 @@ const actions = [
 		action: "microplastics:wait:2",
 		used: false,
 	},
-	{
-		name: "tumbledryer",
-		texture: "action-n-tumbledryer.png",
-		title: "Tumble Dryer",
-		statement:
-			"You dried your laundry with the tumble dryer this week. That releases many microplastics in your indoor air! Add two microplastics.",
-		action: "microplastics:add:2",
-		used: false,
-	},
+	// {
+	// 	name: "tumbledryer",
+	// 	texture: "action-n-tumbledryer.png",
+	// 	title: "Tumble Dryer",
+	// 	statement:
+	// 		"You dried your laundry with the tumble dryer this week. That releases many microplastics in your indoor air! Add two microplastics.",
+	// 	action: "microplastics:add:2",
+	// 	used: false,
+	// },
 	{
 		name: "syntheticheat",
 		texture: "action-n-syntheticheat.png",
@@ -144,15 +144,15 @@ const actions = [
 	// 	action: "",
 	// 	used: false,
 	// },
-	{
-		name: "airdrying",
-		texture: "action-p-airdrying.png",
-		title: "Air-drying",
-		statement:
-			"You air-dried your laundry instead of using a tumble dryer. You prevented a lot of microplastics from getting into the air. Smart move! Keep this card until the next laundry cycle, then add only half the usual microplastics.",
-		action: "store:washing:skip:half",
-		used: false,
-	},
+	// {
+	// 	name: "airdrying",
+	// 	texture: "action-p-airdrying.png",
+	// 	title: "Air-drying",
+	// 	statement:
+	// 		"You air-dried your laundry instead of using a tumble dryer. You prevented a lot of microplastics from getting into the air. Smart move! Keep this card until the next laundry cycle, then add only half the usual microplastics.",
+	// 	action: "store:washing:skip:half",
+	// 	used: false,
+	// },
 	// {
 	// 	name: "secondlhandstuff",
 	// 	texture: "action-p-secondlhandstuff.png",
