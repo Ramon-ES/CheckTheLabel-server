@@ -655,9 +655,13 @@ io.on("connection", (socket) => {
 		});
 	});
 
-	socket.on("createRoom", () => {
+	socket.on("createRoom", ({ gameMode = "research" } = {}) => {
 		const roomCode = generateRoomCode();
 		rooms[roomCode] = createBaseRoom();
+
+		// Store game mode (research = timer/codes/analytics, casual = none)
+		rooms[roomCode].gameMode = gameMode;
+		console.log(`🎮 Room ${roomCode} created with gameMode: ${gameMode}`);
 
 		// store trivia
 		rooms[roomCode].trivia = shuffleArray([...trivia]);
@@ -698,6 +702,7 @@ io.on("connection", (socket) => {
 			roomCode: roomCode,
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
+			gameMode: rooms[roomCode].gameMode,
 		});
 
 		// For CPU games, resend latest event in case game was stuck
@@ -706,9 +711,13 @@ io.on("connection", (socket) => {
 		}, 1500);
 	});
 
-	socket.on("startAlone", () => {
+	socket.on("startAlone", ({ gameMode = "research" } = {}) => {
 		const roomCode = generateRoomCode();
 		rooms[roomCode] = createBaseRoom();
+
+		// Store game mode (research = timer/codes/analytics, casual = none)
+		rooms[roomCode].gameMode = gameMode;
+		console.log(`🎮 Room ${roomCode} (single player) created with gameMode: ${gameMode}`);
 
 		// store trivia
 		rooms[roomCode].trivia = shuffleArray([...trivia]);
@@ -749,6 +758,7 @@ io.on("connection", (socket) => {
 			roomCode: roomCode,
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
+			gameMode: rooms[roomCode].gameMode,
 		});
 	});
 
@@ -838,6 +848,7 @@ io.on("connection", (socket) => {
 			roomCode,
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
+			gameMode: rooms[roomCode].gameMode,
 		});
 
 		// For CPU games, resend latest event in case game was stuck
@@ -851,6 +862,7 @@ io.on("connection", (socket) => {
 			player,
 			players: rooms[roomCode].players,
 			gameState: rooms[roomCode].gameState,
+			gameMode: rooms[roomCode].gameMode,
 		});
 	});
 
@@ -879,6 +891,7 @@ io.on("connection", (socket) => {
 			roomCode,
 			players: room.players,
 			gameState: room.gameState,
+			gameMode: room.gameMode,
 		});
 
 		socket.to(roomCode).emit("playerRejoined", {
@@ -886,6 +899,7 @@ io.on("connection", (socket) => {
 			player,
 			players: room.players,
 			gameState: room.gameState,
+			gameMode: room.gameMode,
 		});
 
 		if (room.timeoutId) {
@@ -1042,14 +1056,16 @@ io.on("connection", (socket) => {
 				console.log(`🎯 Game started! Turn order:`, sortedPlayerIds.map(id => room.players[id].username));
 				console.log(`🎯 First turn player: ${room.players[sortedPlayerIds[0]].username}`);
 
-				// 📊 Initialize analytics tracking for this game
-				if (!room.gameSession) {
+				// 📊 Initialize analytics tracking for this game (research mode only)
+				if (room.gameMode === "research" && !room.gameSession) {
 					room.gameSession = gameDataLogger.initGameSession(roomCode, room.players);
 					console.log(`📊 Analytics tracking started for game ${room.gameSession.gameId}`);
 				}
 
-				// ⏱️ Start game timer for 20-minute event tracking
-				startGameTimer(roomCode);
+				// ⏱️ Start game timer for 20-minute event tracking (research mode only)
+				if (room.gameMode === "research") {
+					startGameTimer(roomCode);
+				}
 			}
 		}
 		
@@ -1871,24 +1887,28 @@ io.on("connection", (socket) => {
 		if (reason) {
 			room.gameState.ended = reason;
 
-			// ✅ Generate completion codes for all players
+			// ✅ Generate completion codes for all players (research mode only)
 			const completionCodes = {};
 			console.log("\n==============================================");
-			console.log(`🎮 GAME ENDED (${reason.toUpperCase()}) - Room: ${roomCode}`);
+			console.log(`🎮 GAME ENDED (${reason.toUpperCase()}) - Room: ${roomCode} - Mode: ${room.gameMode || 'research'}`);
 			console.log("==============================================");
-			Object.keys(room.players).forEach((playerId) => {
-				const player = room.players[playerId];
-				// Only generate codes for non-CPU players
-				if (!player.isCPU) {
-					const code = generateCompletionCode(playerId, roomCode, reason);
-					completionCodes[playerId] = code;
-					console.log(`✅ ${player.username}: ${code}`);
-				}
-			});
+			if (room.gameMode === "research") {
+				Object.keys(room.players).forEach((playerId) => {
+					const player = room.players[playerId];
+					// Only generate codes for non-CPU players
+					if (!player.isCPU) {
+						const code = generateCompletionCode(playerId, roomCode, reason);
+						completionCodes[playerId] = code;
+						console.log(`✅ ${player.username}: ${code}`);
+					}
+				});
+			} else {
+				console.log(`ℹ️ Casual mode - no completion codes generated`);
+			}
 			console.log("==============================================\n");
 
-			// 📊 End game session and save analytics
-			if (room.gameSession) {
+			// 📊 End game session and save analytics (research mode only)
+			if (room.gameMode === "research" && room.gameSession) {
 				gameDataLogger.endGameSession(room.gameSession, room, reason, completionCodes);
 				console.log(`📊 Game ${room.gameSession.gameId} analytics saved`);
 			}
@@ -1899,9 +1919,9 @@ io.on("connection", (socket) => {
 			io.to(roomCode).emit("game:ended", {
 				reason,
 				gameState: room.gameState,
-				completionCodes: completionCodes,
+				completionCodes: room.gameMode === "research" ? completionCodes : null,
 			});
-			if (callback) callback({ ended: true, reason, gameState: room.gameState, completionCodes });
+			if (callback) callback({ ended: true, reason, gameState: room.gameState, completionCodes: room.gameMode === "research" ? completionCodes : null });
 		} else {
 			if (callback) callback({ ended: false });
 		}
@@ -2325,6 +2345,7 @@ function startGameTimer(roomCode) {
 		const twentyMinutesMs = 20 * 60 * 1000; // 20 minutes in milliseconds
 
 		// Check if 20 minutes have passed and event hasn't been fired yet
+		// Note: Timer only runs in research mode, but check anyway for safety
 		if (elapsedTime >= twentyMinutesMs && !room.twentyMinuteEventFired) {
 			room.twentyMinuteEventFired = true;
 			console.log(`⏰ Game in room ${roomCode} has reached 20 minutes!`);
@@ -2332,24 +2353,26 @@ function startGameTimer(roomCode) {
 			// 🎮 Mark game as ended with timeCap reason
 			room.gameState.ended = "timeCap";
 
-			// ✅ Generate completion codes for all players (without full game end)
+			// ✅ Generate completion codes for all players (research mode only)
 			const completionCodes = {};
 			console.log("\n==============================================");
 			console.log(`⏰ TIME CAP REACHED (20 MINUTES) - Room: ${roomCode}`);
 			console.log("==============================================");
-			Object.keys(room.players).forEach((playerId) => {
-				const player = room.players[playerId];
-				// Only generate codes for non-CPU players
-				if (!player.isCPU) {
-					const code = generateCompletionCode(playerId, roomCode, "timeCap");
-					completionCodes[playerId] = code;
-					console.log(`✅ ${player.username}: ${code}`);
-				}
-			});
+			if (room.gameMode === "research") {
+				Object.keys(room.players).forEach((playerId) => {
+					const player = room.players[playerId];
+					// Only generate codes for non-CPU players
+					if (!player.isCPU) {
+						const code = generateCompletionCode(playerId, roomCode, "timeCap");
+						completionCodes[playerId] = code;
+						console.log(`✅ ${player.username}: ${code}`);
+					}
+				});
+			}
 			console.log("==============================================\n");
 
-			// 📊 End game session and save analytics
-			if (room.gameSession) {
+			// 📊 End game session and save analytics (research mode only)
+			if (room.gameMode === "research" && room.gameSession) {
 				gameDataLogger.endGameSession(room.gameSession, room, "timeCap", completionCodes);
 				console.log(`📊 Game ${room.gameSession.gameId} analytics saved (timeCap)`);
 			}
@@ -2362,7 +2385,7 @@ function startGameTimer(roomCode) {
 				roomCode,
 				elapsedTime,
 				message: "The game has been running for 20 minutes",
-				completionCodes: completionCodes,
+				completionCodes: room.gameMode === "research" ? completionCodes : null,
 				gameState: room.gameState
 			});
 		}
@@ -2544,14 +2567,16 @@ function startGameFromIntroduction(roomCode) {
 		card.washed = false;
 	}
 
-	// Initialize analytics tracking for this game
-	if (!room.gameSession) {
+	// Initialize analytics tracking for this game (research mode only)
+	if (room.gameMode === "research" && !room.gameSession) {
 		room.gameSession = gameDataLogger.initGameSession(roomCode, room.players);
 		console.log(`📊 Analytics tracking started for game ${room.gameSession.gameId}`);
 	}
 
-	// Start game timer for 20-minute event tracking
-	startGameTimer(roomCode);
+	// Start game timer for 20-minute event tracking (research mode only)
+	if (room.gameMode === "research") {
+		startGameTimer(roomCode);
+	}
 
 	// Increment version for state tracking
 	incrementGameStateVersion(room);
